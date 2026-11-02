@@ -8,13 +8,13 @@ export const getAccessLogs = manejarErrores(
             `SELECT l.id_log AS id, l.ip_address AS ip, l.evento, l.browser, l.fecha_hora,
                 p.nombre, p.paterno, p.materno
             FROM log_acceso l
-            JOIN persona p ON l.id_usuario = p.id_persona
+            LEFT JOIN persona p ON l.id_usuario = p.id_persona
             ORDER BY l.fecha_hora DESC
             LIMIT 150`
         );
-        const logs = rows.map(l=> ({
+        const logs = rows.map(l => ({
             id: l.id,
-            usuario: nombreCompleto({ nombre: l.nombre, paterno: l.paterno }),
+            usuario: l.nombre ? nombreCompleto({ nombre: l.nombre, paterno: l.paterno }) : 'Sistema / Anónimo',
             ip: l.ip || '127.0.0.1',
             evento: l.evento,
             browser: l.browser || 'Desconocido',

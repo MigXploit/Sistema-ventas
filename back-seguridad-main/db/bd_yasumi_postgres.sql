@@ -321,4 +321,22 @@ CREATE TABLE producto_fecha (
 INSERT INTO producto_fecha (id_producto, id_fecha, precio_especial, destacado) VALUES
 (1, 1, 420.00, TRUE);
 
+-- --------------------------------------------------------
+-- C-13: Inmutabilidad estricta (Append-Only) para logs de acceso y auditoría
+-- Impide cualquier operación UPDATE o DELETE por parte del usuario de la aplicación
+-- --------------------------------------------------------
+CREATE OR REPLACE VIEW log_auditoria AS SELECT * FROM log_acceso;
+
+CREATE OR REPLACE FUNCTION prevenir_modificacion_logs()
+RETURNS TRIGGER AS $$
+BEGIN
+    RAISE EXCEPTION 'permission denied: log_acceso y log_auditoria son de solo inserción (Append-Only inmutable)';
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_proteger_log_acceso ON log_acceso;
+CREATE TRIGGER trg_proteger_log_acceso
+BEFORE UPDATE OR DELETE ON log_acceso
+FOR EACH ROW EXECUTE FUNCTION prevenir_modificacion_logs();
+
 COMMIT;

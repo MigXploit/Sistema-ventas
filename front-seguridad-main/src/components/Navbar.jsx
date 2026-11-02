@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { FlowerIcon, DashboardIcon, CatalogIcon, ProductsIcon, ReportsIcon, UsersIcon } from './Icons';
@@ -5,9 +6,11 @@ import { FlowerIcon, DashboardIcon, CatalogIcon, ProductsIcon, ReportsIcon, User
 export default function Navbar() {
   const { usuario, logout, esAdmin } = useAuth();
   const navigate = useNavigate();
+  const [menuAbierto, setMenuAbierto] = useState(false);
 
   const handleLogout = () => {
     logout();
+    setMenuAbierto(false);
     navigate('/login');
   };
 
@@ -15,17 +18,22 @@ export default function Navbar() {
     ? usuario.nombre.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
     : '?';
 
+  const cerrarMenu = () => setMenuAbierto(false);
+
   return (
     <nav className="navbar">
-      <NavLink to="/dashboard" className="navbar-brand" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <FlowerIcon size={32} />
-        <div>
-          <span className="navbar-title">Yasumi</span>
-          <span className="navbar-subtitle">Florería & Regalos</span>
-        </div>
-      </NavLink>
+      <div className="navbar-left">
+        <NavLink to="/dashboard" className="navbar-brand" onClick={cerrarMenu} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <FlowerIcon size={32} />
+          <div>
+            <span className="navbar-title">Yasumi</span>
+            <span className="navbar-subtitle">Florería & Regalos</span>
+          </div>
+        </NavLink>
+      </div>
 
-      <ul className="navbar-menu">
+      {/* Menú de escritorio */}
+      <ul className="navbar-menu navbar-menu-desktop">
         {usuario && usuario.rol !== 'invitado' && usuario.rol !== 'cliente' && (
           <li>
             <NavLink to="/dashboard" className={({ isActive }) => isActive ? 'active' : ''} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -59,10 +67,11 @@ export default function Navbar() {
         )}
       </ul>
 
+      {/* Datos del usuario y botón hamburguesa */}
       <div className="navbar-user">
         {usuario && (
           <>
-            <span style={{
+            <span className="navbar-user-info" style={{
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'flex-end',
@@ -84,6 +93,7 @@ export default function Navbar() {
             <div className="navbar-avatar">{iniciales}</div>
             <button
               onClick={handleLogout}
+              className="navbar-btn-logout"
               style={{
                 background: 'rgba(255,255,255,0.05)',
                 border: '1px solid rgba(255,255,255,0.1)',
@@ -104,7 +114,49 @@ export default function Navbar() {
             </button>
           </>
         )}
+
+        {/* Botón hamburguesa para móviles */}
+        <button
+          className="navbar-mobile-toggle"
+          onClick={() => setMenuAbierto(!menuAbierto)}
+          aria-label="Abrir menú"
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            {menuAbierto ? (
+              <path d="M18 6L6 18M6 6l12 12" />
+            ) : (
+              <path d="M3 12h18M3 6h18M3 18h18" />
+            )}
+          </svg>
+        </button>
       </div>
+
+      {/* Menú desplegable móvil */}
+      {menuAbierto && (
+        <div className="navbar-mobile-dropdown">
+          {usuario && usuario.rol !== 'invitado' && usuario.rol !== 'cliente' && (
+            <NavLink to="/dashboard" onClick={cerrarMenu} className={({ isActive }) => `mobile-nav-link ${isActive ? 'active' : ''}`}>
+              <DashboardIcon size={20} /> Dashboard
+            </NavLink>
+          )}
+          <NavLink to="/catalogo" onClick={cerrarMenu} className={({ isActive }) => `mobile-nav-link ${isActive ? 'active' : ''}`}>
+            <CatalogIcon size={20} /> Catálogo de Productos
+          </NavLink>
+          {usuario && esAdmin() && (
+            <>
+              <NavLink to="/productos" onClick={cerrarMenu} className={({ isActive }) => `mobile-nav-link ${isActive ? 'active' : ''}`}>
+                <ProductsIcon size={20} /> Gestión de Productos
+              </NavLink>
+              <NavLink to="/reportes" onClick={cerrarMenu} className={({ isActive }) => `mobile-nav-link ${isActive ? 'active' : ''}`}>
+                <ReportsIcon size={20} /> Reportes y Auditoría
+              </NavLink>
+              <NavLink to="/usuarios" onClick={cerrarMenu} className={({ isActive }) => `mobile-nav-link ${isActive ? 'active' : ''}`}>
+                <UsersIcon size={20} /> Gestión de Usuarios
+              </NavLink>
+            </>
+          )}
+        </div>
+      )}
     </nav>
   );
 }

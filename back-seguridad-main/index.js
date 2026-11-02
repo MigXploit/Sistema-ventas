@@ -45,7 +45,7 @@ app.use(cors({
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-2FA-Token']
 }));
 
 // 5. Protección Anti-CSRF (Cross-Site Request Forgery)
@@ -63,6 +63,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/productos', productRoutes);
 app.use('/api/categorias', categoryRoutes);
 app.use('/api/usuarios', userRoutes);
+app.use('/usuarios', userRoutes); // Alias para soporte de especificación C-12 (PUT /usuarios/:id/rol)
 app.use('/api/logs', logRoutes);
 
 // Ruta de ping para comprobar salud y base de datos (con mitigación de information disclosure)

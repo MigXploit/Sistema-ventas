@@ -8,9 +8,52 @@ import { registrarAcceso } from '../services/logService.js';
 import { buscarIdPorEmail, crearUsuarioCompleto } from '../services/userService.js';
 import { nombreCompleto } from '../utils/helpers.js';
 import { generarCaptchaSeguro, validarCaptcha } from '../utils/captcha.js';
+import { revokeToken } from '../middleware/tokenBlacklist.js';
 
 // Hash falso para igualar tiempos de CPU y mitigar ataques de enumeración por temporización (Timing Attacks)
 const DUMMY_HASH = '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi';
+
+// C-07: Control de bloqueo temporal tras 6 intentos fallidos consecutivos
+const intentosFallidos = new Map();
+const MAX_FALLOS = 6;
+const BLOQUEO_DURACION_MS = 15 * 60 * 1000; // 15 minutos
+
+const verificarBloqueo = (key) => {
+    const reg = intentosFallidos.get(key);
+    if (!reg) return { bloqueado: false };
+    if (reg.bloqueadoHasta && Date.now() < reg.bloqueadoHasta) {
+        const minutosRestantes = Math.ceil((reg.bloqueadoHasta - Date.now()) / 60000);
+        return { bloqueado: true, minutos: minutosRestantes };
+    }
+    if (reg.bloqueadoHasta && Date.now() >= reg.bloqueadoHasta) {
+        intentosFallidos.delete(key);
+        return { bloqueado: false };
+    }
+    return { bloqueado: false };
+};
+
+const registrarFallo = async (req, key, idUsuario) => {
+    let reg = intentosFallidos.get(key) || { fallos: 0, bloqueadoHasta: null };
+    reg.fallos += 1;
+
+    // C-10: Auditoría inmediata de intento fallido (AUTH_FAIL con IP y navegador)
+    if (idUsuario) {
+        await registrarAcceso(req, idUsuario, 'AUTH_FAIL');
+    }
+
+    if (reg.fallos >= MAX_FALLOS) {
+        reg.bloqueadoHasta = Date.now() + BLOQUEO_DURACION_MS;
+        intentosFallidos.set(key, reg);
+        // C-07: Evento AUTH_BLOQUEADO y bloqueo de 15 minutos
+        if (idUsuario) {
+            await registrarAcceso(req, idUsuario, 'AUTH_BLOQUEADO');
+        }
+        return { bloqueado: true, minutos: 15 };
+    }
+
+    intentosFallidos.set(key, reg);
+    return { bloqueado: false, fallos: reg.fallos };
+};
 
 // Generador de CAPTCHA seguro con firma criptográfica HMAC
 export const obtenerCaptcha = (req, res) => {
@@ -34,7 +77,7 @@ export const login = async (req, res) => {
     const { email, password, captchaA, captchaB, captchaInput, captchaToken } = req.body;
 
     try {
-        // 1. Validar CAPTCHA matemático seguro
+        // 1. C-08: Validar CAPTCHA matemático seguro contra operandos fabricados
         const resultadoCaptcha = validarCaptcha({
             token: captchaToken,
             a: captchaA,
@@ -47,6 +90,14 @@ export const login = async (req, res) => {
         }
 
         const emailLimpio = (email || '').toLowerCase().trim();
+
+        // C-07: Comprobar si la cuenta/IP está temporalmente bloqueada
+        const estadoBloqueo = verificarBloqueo(emailLimpio);
+        if (estadoBloqueo.bloqueado) {
+            return res.status(423).json({
+                error: `Cuenta temporalmente bloqueada por reiterados intentos fallidos. Intente de nuevo en ${estadoBloqueo.minutos} minuto(s).`
+            });
+        }
 
         // 2. Buscar usuario en base de datos (persona + usuario)
         const { rows } = await pool.query(
@@ -61,13 +112,18 @@ export const login = async (req, res) => {
         // Si el usuario no existe, ejecutamos un hash dummy para evitar Timing Attacks
         if (rows.length === 0) {
             await bcrypt.compare(password || '', DUMMY_HASH);
-            // Intentar registrar log anónimo de intento fallido
+            const fallo = await registrarFallo(req, emailLimpio, null);
+            if (fallo.bloqueado) {
+                return res.status(423).json({
+                    error: `Ha superado el límite de 6 intentos fallidos. Su cuenta ha sido bloqueada temporalmente por 15 minutos.`
+                });
+            }
             return res.status(401).json({ error: 'Credenciales inválidas. Por favor verifique su correo y contraseña.' });
         }
 
         const user = rows[0];
 
-        // 3. Verificar si el usuario está activo
+        // 3. Verificar si el usuario está activo (C-05)
         if (!user.activo) {
             await bcrypt.compare(password || '', DUMMY_HASH);
             await registrarAcceso(req, user.id_persona, 'LOGIN_BLOQUEADO_INACTIVO');
@@ -77,10 +133,18 @@ export const login = async (req, res) => {
         // 4. Contrastar contraseña
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
-            // Auditoría de fallo de credenciales
-            await registrarAcceso(req, user.id_persona, 'LOGIN_FALLIDO');
+            // C-07 y C-10: Auditoría de fallo de credenciales (AUTH_FAIL) y bloqueo si llega a 6
+            const fallo = await registrarFallo(req, emailLimpio, user.id_persona);
+            if (fallo.bloqueado) {
+                return res.status(423).json({
+                    error: `Ha superado el límite de 6 intentos fallidos. La cuenta ha sido bloqueada temporalmente por 15 minutos.`
+                });
+            }
             return res.status(401).json({ error: 'Credenciales inválidas. Por favor verifique su correo y contraseña.' });
         }
+
+        // Login exitoso: restablecer intentos fallidos
+        intentosFallidos.delete(emailLimpio);
 
         // 5. Mapear rol de BD a Frontend
         const rolFrontend = mapRolToFrontend(user.rol);
@@ -156,7 +220,6 @@ export const register = async (req, res) => {
                     rolBD = rol === 'admin' ? 'Administrador' : 'Atención al Cliente';
                 }
             } catch {
-                // Token inválido — forzar rol Cliente
                 rolBD = 'Cliente';
             }
         }
@@ -180,16 +243,23 @@ export const register = async (req, res) => {
     }
 };
 
-// Logout de usuario con registro de auditoría
+// C-06: Logout de usuario con revocación inmediata del token JWT en la lista negra
 export const logout = async (req, res) => {
     try {
         if (!req.user) {
             return res.status(401).json({ error: 'Sesión no válida o no autenticada' });
         }
 
+        // Revocar token para que cualquier intento posterior retorne 401
+        const authHeader = req.headers['authorization'];
+        const token = authHeader && authHeader.split(' ')[1];
+        if (token) {
+            revokeToken(token);
+        }
+
         await registrarAcceso(req, req.user.id, 'SALIDA');
 
-        res.json({ ok: true, message: 'Salida y auditoría registradas exitosamente' });
+        res.json({ ok: true, message: 'Sesión cerrada y token revocado exitosamente' });
     } catch (error) {
         console.error('Error en logout:', error);
         res.status(500).json({ error: 'Error en el servidor al registrar salida' });

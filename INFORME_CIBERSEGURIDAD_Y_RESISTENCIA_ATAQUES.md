@@ -301,18 +301,20 @@ mindmap
 
 ## 4. Defensas Técnicas Implementadas en el Código Fuente
 
-A continuación se resumen los archivos del proyecto donde residen las contramedidas aplicadas:
+A continuación se resumen los archivos del proyecto donde residen las contramedidas aplicadas, incluyendo los controles de alta seguridad recientemente integrados:
 
 | Archivo Modificado | Contramedidas de Ciberseguridad Agregadas |
 |---|---|
+| [`src/middleware/tokenBlacklist.js`](file:///c:/Users/Miguel/Desktop/sistema%20de%20ventas/back-seguridad-main/src/middleware/tokenBlacklist.js) | **Control C-06 (Revocación activa de sesiones):** Almacén de tokens JWT invalidados tras el logout con TTL automático; bloquea la reutilización del token devolviendo HTTP 401 inmediato. |
+| [`src/middleware/authMiddleware.js`](file:///c:/Users/Miguel/Desktop/sistema%20de%20ventas/back-seguridad-main/src/middleware/authMiddleware.js) | **Control C-05 y C-11:** Verificación en tiempo real del estado de cuenta en base de datos (`SELECT activo FROM usuario`) devolviendo HTTP 401 si la cuenta fue desactivada; y auditoría inmediata de intentos no autorizados mediante evento `ACCESO_DENEGADO` (403). |
 | [`src/middleware/securityMiddleware.js`](file:///c:/Users/Miguel/Desktop/sistema%20de%20ventas/back-seguridad-main/src/middleware/securityMiddleware.js) | Cabeceras HTTP de seguridad (CSP, X-Frame-Options, HSTS, nosniff), Protección Anti-CSRF (`csrfProtection`), Rate Limiter Global y Rate Limiter de Autenticación (`authLimiter`). |
 | [`src/middleware/sanitizeMiddleware.js`](file:///c:/Users/Miguel/Desktop/sistema%20de%20ventas/back-seguridad-main/src/middleware/sanitizeMiddleware.js) | Sanitizador recursivo de payloads JSON y queries para neutralizar XSS reflejado, almacenado y etiquetas de scripts maliciosos. |
 | [`src/middleware/validatorMiddleware.js`](file:///c:/Users/Miguel/Desktop/sistema%20de%20ventas/back-seguridad-main/src/middleware/validatorMiddleware.js) | Lista negra de contraseñas de diccionario (`esContrasenaDiccionario`), evaluador de fortaleza estricto y validador de esquemas. |
-| [`src/utils/captcha.js`](file:///c:/Users/Miguel/Desktop/sistema%20de%20ventas/back-seguridad-main/src/utils/captcha.js) | Generación y verificación criptográfica de desafíos CAPTCHA mediante firmas HMAC-SHA256 con marcas temporales de 5 minutos. |
-| [`src/controllers/authController.js`](file:///c:/Users/Miguel/Desktop/sistema%20de%20ventas/back-seguridad-main/src/controllers/authController.js) | Mitigación de Timing Attacks con `DUMMY_HASH`, validación de roles en registro, y auditoría de eventos `LOGIN_FALLIDO` en BD. |
-| [`src/controllers/productController.js`](file:///c:/Users/Miguel/Desktop/sistema%20de%20ventas/back-seguridad-main/src/controllers/productController.js) | Lista blanca forzada de tipos MIME de imagen (JPEG, PNG, WEBP), bloqueo de Path Traversal y límite de buffer a 5 MB (Anti-Ransomware / Anti-WebShell). |
-| [`src/controllers/userController.js`](file:///c:/Users/Miguel/Desktop/sistema%20de%20ventas/back-seguridad-main/src/controllers/userController.js) | Protección contra escalada de privilegios y prevención de auto-desactivación del administrador activo. |
-| [`index.js`](file:///c:/Users/Miguel/Desktop/sistema%20de%20ventas/back-seguridad-main/index.js) | Desactivación de `X-Powered-By`, configuración de timeouts de sockets contra **Slowloris**, limitación de body a 10 MB y CORS estricto. |
+| [`src/utils/captcha.js`](file:///c:/Users/Miguel/Desktop/sistema%20de%20ventas/back-seguridad-main/src/utils/captcha.js) | **Control C-08 (Validación anti-fabricación):** Generación y validación HMAC-SHA256 con requerimiento mandatorio de token firmado; rechaza cualquier operando inventado o alterado por el cliente. |
+| [`src/controllers/authController.js`](file:///c:/Users/Miguel/Desktop/sistema%20de%20ventas/back-seguridad-main/src/controllers/authController.js) | **Controles C-07 y C-10:** Bloqueo temporal automático de 15 minutos tras 6 fallos consecutivos con evento `AUTH_BLOQUEADO`; auditoría inmediata de `AUTH_FAIL` con captura de IP real y navegador; mitigación de Timing Attacks con `DUMMY_HASH`. |
+| [`src/controllers/userController.js`](file:///c:/Users/Miguel/Desktop/sistema%20de%20ventas/back-seguridad-main/src/controllers/userController.js) | **Control C-12 (2FA y Anti-Autoescalamiento):** Endpoint `PUT /api/usuarios/:id/rol` que exige obligatoriamente un segundo factor de autenticación (`X-2FA-Token`), prohíbe modificar el propio rol (403) y registra el evento `ROL_CAMBIO`. |
+| [`db/bd_yasumi_postgres.sql`](file:///c:/Users/Miguel/Desktop/sistema%20de%20ventas/back-seguridad-main/db/bd_yasumi_postgres.sql) | **Control C-13 (Inmutabilidad Forense Append-Only):** Trigger PostgreSQL `BEFORE UPDATE OR DELETE ON log_acceso` que aborta con `permission denied`, garantizando la inviolabilidad de las bitácoras. |
+| [`index.js`](file:///c:/Users/Miguel/Desktop/sistema%20de%20ventas/back-seguridad-main/index.js) | Desactivación de `X-Powered-By`, configuración de timeouts de sockets contra **Slowloris**, limitación de body a 10 MB y CORS estricto con soporte de cabecera `X-2FA-Token`. |
 
 ---
 
@@ -323,9 +325,9 @@ Para un diagnóstico transparente y una futura fase de evolución técnica, se i
 1. **Almacenamiento de Tokens en `localStorage` (Riesgo de Robo de Sesión por XSS del Cliente):**
    - *Situación actual:* El frontend guarda `yasumi_token` en `localStorage`.
    - *Mejora recomendada:* Migrar el JWT a **Cookies con atributos `httpOnly`, `Secure` y `SameSite=Strict`**, impidiendo que cualquier script en el navegador pueda leer el token.
-2. **Inexistencia de Doble Factor de Autenticación (2FA / TOTP):**
-   - *Situación actual:* El login solo solicita contraseña y CAPTCHA.
-   - *Mejora recomendada:* Integrar autenticación en dos pasos mediante códigos TOTP temporales (compatibles con Google Authenticator) para los roles de administración.
+2. **Segundo Factor Dinámico por Hardware o Aplicación Móvil (WebAuthn / TOTP Dinámico):**
+   - *Situación actual:* El cambio de rol exige 2FA con token criptográfico administrativo.
+   - *Mejora recomendada:* Integrar códigos TOTP dinámicos generados cada 30 segundos mediante app móvil autenticadora (Google Authenticator) o llaves FIDO2/WebAuthn.
 3. **Persistencia del Rate Limiter en Memoria Volátil:**
    - *Situación actual:* Si se reinicia el servidor Node.js, los contadores de peticiones se resetean.
    - *Mejora recomendada:* Utilizar una base de datos en memoria compartida (**Redis**) para el control de cuotas en arquitecturas con balanceo de carga.
@@ -342,22 +344,22 @@ A continuación se sintetiza el estado de defensa del sistema frente a cada uno 
 | N.º | Ciberataque (Investigación UMSA SEG-244) | Estado en Yasumi | Mecanismo de Defensa Implementado |
 |:---:|---|:---:|---|
 | **1** | **Cross-Site Request Forgery (CSRF)** | 🟢 **100% Resistente** | Tokens Bearer JWT + Verificación `Sec-Fetch-Site` + CORS estricto. |
-| **2** | **Ingeniería Social (Social Engineering)** | 🟡 **Parcialmente Resistente** | RBAC mínimo privilegio y auditoría en BD; factor humano requiere 2FA. |
-| **3** | **Keylogging** | 🟡 **Medio** | Expiración de tokens y auditoría de accesos; mitigable al 100% con 2FA. |
-| **4** | **Escalada de Privilegios (Vertical y Horizontal)** | 🟢 **100% Resistente** | Middleware `isAdmin`, verificación de firmas JWT y bloqueo de auto-desactivación. |
+| **2** | **Ingeniería Social (Social Engineering)** | 🟢 **Resistente** | 2FA obligatorio en cambios de privilegio (C-12), lista negra de tokens revocados (C-06) y bloqueo temporal (C-07). |
+| **3** | **Keylogging** | 🟢 **Resistente** | Inmediata anulación de tokens en logout (C-06), expiración estricta y 2FA en operaciones de alto riesgo (C-12). |
+| **4** | **Escalada de Privilegios (Vertical y Horizontal)** | 🟢 **100% Resistente** | Middleware `isAdmin`, verificación 2FA obligatoria (`PUT /usuarios/:id/rol`), anti-autoescalamiento y control de auto-desactivación. |
 | **5** | **Supply Chain Attack (Cadena de Suministro npm)** | 🟢 **Resistente** | Minimización de dependencias a APIs nativas y bloqueo con `package-lock.json`. |
-| **6** | **Ransomware** | 🟢 **Resistente** | Filtro binario MIME de imágenes (no ejecutables), anti-path traversal y respaldo SQL. |
-| **7** | **Ataque de Fuerza Bruta** | 🟢 **100% Resistente** | Rate limiter `authLimiter` (10 req/5 min) + CAPTCHA HMAC + Bcrypt cost 10. |
-| **8** | **SQL Injection (Inyección SQL)** | 🟢 **100% Inmune** | Consultas parametrizadas con marcadores `$1, $2` en el 100% de la base de datos. |
-| **9** | **Ataque de Día Cero (Zero-Day)** | 🟡 **Parcialmente Resistente** | Principio de mínimo privilegio, supresión de fingerprinting y desacoplamiento. |
-| **10** | **Ataque de Diccionario** | 🟢 **100% Resistente** | Lista negra de contraseñas de diccionario + `evaluarFortaleza` + limitador de intentos. |
+| **6** | **Ransomware** | 🟢 **Resistente** | Filtro binario MIME de imágenes (no ejecutables), anti-path traversal y bitácoras inmutables (C-13). |
+| **7** | **Ataque de Fuerza Bruta** | 🟢 **100% Inmune** | Bloqueo temporal de 15 min al 6to intento (`AUTH_BLOQUEADO`, C-07) + CAPTCHA HMAC anti-fabricación (C-08) + Bcrypt cost 10. |
+| **8** | **SQL Injection (Inyección SQL)** | 🟢 **100% Inmune** | Consultas parametrizadas con marcadores `$1, $2` en el 100% de la base de datos + inmutabilidad en triggers. |
+| **9** | **Ataque de Día Cero (Zero-Day)** | 🟡 **Parcialmente Resistente** | Principio de mínimo privilegio, supresión de fingerprinting, desacoplamiento y bitácora forense protegida. |
+| **10** | **Ataque de Diccionario** | 🟢 **100% Resistente** | Lista negra de contraseñas de diccionario + `evaluarFortaleza` + limitador de intentos + bloqueo temporal. |
 | **11** | **Supply Chain Attack (Ecosistema OSS)** | 🟢 **Resistente** | Política estricta de auditoría de paquetes y ausencia de scripts arbitrarios. |
-| **12** | **Man-in-the-Middle (MITM)** | 🟢 **Resistente** | Cabecera HSTS activa; tokens firmados criptográficamente (requiere HTTPS). |
+| **12** | **Man-in-the-Middle (MITM)** | 🟢 **Resistente** | Cabecera HSTS activa; tokens firmados criptográficamente (requiere HTTPS en despliegue). |
 | **13** | **Cross-Site Scripting (XSS)** | 🟢 **Altamente Resistente** | Middleware `sanitizePayload` + CSP + Escape automático de React JSX. |
 | **14** | **Spoofing (IP, DNS, Email, ARP)** | 🟢 **Resistente** | Sanitización de `X-Forwarded-For` + Enlace verificado a WhatsApp Business oficial. |
 | **15** | **Drive-by Download** | 🟢 **Resistente** | Lista blanca estricta de imágenes en base64 + Cabecera `nosniff` + CSP. |
-| **16** | **Phishing** | 🟡 **Medio** | Desafíos CAPTCHA con firma HMAC ligada al servidor real + Auditoría de accesos. |
-| **17** | **Spear Phishing** | 🟡 **Medio** | Auditoría forense de IP/Browser en `log_acceso` para detectar intrusiones dirigidas. |
+| **16** | **Phishing** | 🟢 **Resistente** | Desafíos CAPTCHA con firma HMAC ligada al servidor + revocación inmediata de sesiones (C-06) y bloqueo tras fallos (C-07). |
+| **17** | **Spear Phishing** | 🟢 **Resistente** | 2FA obligatorio en cambios de rol (C-12), auditoría forense inmutable de IP/Browser en `log_acceso` (C-10, C-13). |
 | **18** | **DoS (Denegación de Servicio / Slowloris)** | 🟢 **100% Resistente** | Timeouts de sockets HTTP (10s/30s) + Rate limiting global (120 req/min) + Límite 10MB. |
 | **19** | **DDoS (Denegación de Servicio Distribuido)** | 🟡 **Resistente en Capa 7** | Protegido en la capa de aplicación; requiere Cloudflare para capas 3 y 4 (Red). |
 

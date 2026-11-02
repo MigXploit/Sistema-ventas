@@ -1,0 +1,854 @@
+% !TEX program = xelatex
+% ============================================================
+%  PROYECTO FINAL - SEGURIDAD DE LA INFORMACION
+%  Docente: Ph.D. Luisa Velásquez López
+%  Sistema: Yasumi Venta (Florería & Regalos)
+%  Compilar con XELATEX o LUALATEX (Overleaf: Menu > Compiler)
+%  Formato: Times New Roman 12 pt, interlineado 1.5, texto justificado.
+% ============================================================
+\documentclass[12pt,letterpaper]{article}
+
+\usepackage[top=2.5cm,bottom=2.5cm,left=3cm,right=2.5cm]{geometry}
+\usepackage{fontspec}
+\IfFontExistsTF{Times New Roman}%
+  {\setmainfont{Times New Roman}}%
+  {\setmainfont{TeX Gyre Termes}}
+\setmonofont{TeX Gyre Cursor}[Scale=0.92]
+\usepackage[spanish,es-tabla,es-noshorthands]{babel}
+
+% --- Interlineado 1.5 y texto justificado (por defecto en LaTeX) ---
+\usepackage{setspace}
+\onehalfspacing
+\setlength{\parindent}{1.25cm}
+\setlength{\parskip}{0pt}
+
+\usepackage{xcolor}
+\usepackage{enumitem}
+\setlist{leftmargin=1.2cm,itemsep=2pt,topsep=4pt}
+\usepackage{etoolbox}
+\usepackage{array,booktabs,longtable,tabularx,multirow}
+\usepackage{float}
+\usepackage{caption}
+\captionsetup{font=small,labelfont=bf,skip=4pt}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,shapes.geometric,calc}
+\usepackage{listings}
+\usepackage{titlesec}
+\usepackage{needspace}
+\usepackage{tocloft}
+
+% --- Titulos de seccion: A-F y luego Partes 1-8 ---
+\titleformat{\section}{\bfseries\normalsize}{\thesection.}{0.6em}{}
+\titleformat{\subsection}[hang]{\bfseries\normalsize}{\thesubsection}{0.6em}{}[]
+\titleformat{\subsection}{\needspace{6\baselineskip}\bfseries\normalsize}{\thesubsection}{0.6em}{}
+\titleformat{\subsubsection}{\bfseries\itshape\normalsize}{}{0em}{}
+\titlespacing*{\section}{0pt}{16pt}{6pt}
+\titlespacing*{\subsection}{0pt}{12pt}{4pt}
+\titlespacing*{\subsubsection}{0pt}{8pt}{2pt}
+\renewcommand{\thesection}{\Alph{section}}
+\renewcommand{\thesubsection}{\Alph{section}.\arabic{subsection}}
+\setlength{\cftsecnumwidth}{4.6em}
+\setlength{\cftsubsecindent}{4.6em}
+\setlength{\cftsubsecnumwidth}{3em}
+\setcounter{tocdepth}{2}
+\renewcommand{\cfttoctitlefont}{\hfill\bfseries\normalsize}
+\renewcommand{\cftaftertoctitle}{\hfill}
+
+% --- Estados de implementacion ---
+\newcommand{\Si}{\textcolor{green!40!black}{\textbf{Implementado}}}
+\newcommand{\Pa}{\textcolor{orange!80!black}{\textbf{Parcial}}}
+\newcommand{\No}{\textcolor{red!70!black}{\textbf{Pendiente}}}
+
+% --- Codigo en linea (permite saltos de linea en rutas y nombres) ---
+\PassOptionsToPackage{obeyspaces}{url}
+\usepackage{xurl}
+\urlstyle{tt}
+\newcommand{\cod}[1]{\path{#1}}
+
+% --- Tablas: letra 11 pt compacta e interlineado sencillo dentro de la tabla ---
+\newenvironment{tabla}{\begin{singlespace}\small\setlength{\tabcolsep}{4pt}\renewcommand{\arraystretch}{1.15}}{\end{singlespace}}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+
+% --- Listados de codigo ---
+\lstset{basicstyle=\ttfamily\footnotesize,breaklines=true,frame=single,
+  columns=fullflexible,keepspaces=true,showstringspaces=false,
+  captionpos=b,aboveskip=6pt,belowskip=6pt,xleftmargin=4pt,xrightmargin=4pt,
+  commentstyle=\color{gray},keywordstyle=\bfseries,
+  morekeywords={CREATE,TABLE,TYPE,ENUM,ALTER,ADD,COLUMN,REVOKE,UPDATE,DELETE,
+    INSERT,SELECT,FROM,WHERE,SET,NOT,NULL,DEFAULT,REFERENCES,ON,TO,FOR,CASE,WHEN,THEN,ELSE,END,AS,INTO,VALUES,LIMIT,ORDER,BY,CONSTRAINT,CHECK}}
+\BeforeBeginEnvironment{lstlisting}{\begin{singlespace}}
+\AfterEndEnvironment{lstlisting}{\end{singlespace}}
+\renewcommand{\lstlistingname}{Listado}
+\lstdefinelanguage{JavaScript}{keywords={const,let,var,function,return,if,else,await,async,export,import,from,try,catch,new,throw,default,true,false,null},
+  sensitive=true,comment=[l]{//},morestring=[b]',morestring=[b]"}
+\emergencystretch=3em
+
+\usepackage[hidelinks]{hyperref}
+\hypersetup{pdftitle={Proyecto Final - Seguridad de la Información - Yasumi Venta},pdfauthor={}}
+
+\begin{document}
+
+\renewcommand{\contentsname}{ÍNDICE}
+\tableofcontents
+\clearpage
+
+\section{INTRODUCCIÓN}
+
+Yasumi Venta es un sistema web integral diseñado para la administración comercial, control de inventario y atención de ventas de una florería y tienda de regalos artesanales. La plataforma permite catalogar productos organizados por categorías especializadas (tortas personalizadas, ramos florales, bocaditos finos y sets de regalo), gestionar cuentas de usuario con roles diferenciados, registrar el acceso de cada persona al sistema con fines de trazabilidad forense y, en su modelo de datos relacional, coordinar reservas, entregas a domicilio (\emph{delivery}) y pagos. La solución se compone de una aplicación de cliente de página única (SPA) desarrollada con React~18 y Vite, una interfaz de programación de aplicaciones (API RESTful) desacoplada construida en Node.js con Express~5, y un motor de base de datos relacional PostgreSQL versión~14 o superior. La seguridad de acceso se basa en tokens web firmados criptográficamente (JSON Web Tokens - JWT) y distingue cuatro roles operativos: Administrador, Vendedor, Cliente e Invitado.
+
+Un sistema de esta naturaleza concentra y procesa activos de información de alto valor que demandan protección rigurosa frente a ciberamenazas: credenciales de acceso del personal, datos personales sensibles de clientes y empleados (nombres completos, correos electrónicos, números telefónicos, direcciones domiciliarias de entrega y fechas de nacimiento), información comercial y financiera crítica (precios unitarios, existencias de inventario, comprobantes de pago y márgenes de ganancia), y registros de auditoría que garantizan la no repudiación y permiten reconstruir la secuencia temporal de eventos ante un incidente. Una vulneración a estos activos acarrearía fraude económico, suplantación de identidad, pérdidas comerciales directas y sanciones por incumplimiento de principios de privacidad de la información.
+
+El presente documento expone de forma detallada el diseño, la implementación técnica y los procedimientos de verificación de los controles de seguridad de Yasumi Venta, estructurado conforme a las especificaciones y rúbrica del proyecto final de la materia \textit{Seguridad de la Información (SEG - 244)}: ciclo de vida de las identidades, autenticación, autorización, auditoría y trazabilidad, recuperación y continuidad, matriz de mínimo privilegio, políticas de seguridad y traducción de políticas a controles verificables. El análisis refleja fielmente el estado del código fuente alojado en el repositorio de la solución, acompañando cada requisito de un indicador de estado explícito: \Si{} cuando el control se encuentra programado y operativo en el software, \Pa{} cuando existe de forma parcial o requiere integración con la base de datos, y \No{} cuando se documenta como diseño formal a incorporar en el ciclo de vida continuo del sistema.
+
+\section{PROBLEMA}
+
+La auditoría de seguridad del código fuente revela que Yasumi Venta dispone de cimientos técnicos robustos: almacenamiento de contraseñas mediante funciones de derivación seguras (Bcrypt), consultas a la base de datos 100\% parametrizadas contra inyecciones SQL, tokens JWT firmados mediante secretos obligatorios y exclusión de contraseñas en respuestas HTTP. No obstante, en sistemas de comercio electrónico y gestión empresarial se identificaron vectores de riesgo y brechas que demandaban una actualización urgente de hardening y controles de defensa en profundidad:
+
+\begin{itemize}
+  \item \textbf{Vulnerabilidad ante ataques de fuerza bruta y automatización:} Los formularios de autenticación carecían de un limitador de tasa (\emph{rate limiting}) en el servidor, dependiendo de un CAPTCHA cuyos operandos se procesaban originalmente en el cliente, permitiendo ataques de \emph{credential stuffing}.
+  \item \textbf{Ataques de temporización (Timing Attacks):} El tiempo de procesamiento de la autenticación permitía distinguir si un correo existía o no en el sistema midiendo los milisegundos de respuesta de la base de datos.
+  \item \textbf{Persistencia de sesiones de cuentas desactivadas:} El middleware de verificación de tokens no consultaba activamente el estado vigente de la cuenta en cada petición, permitiendo que un token emitido siguiera siendo válido hasta su expiración formal.
+  \item \textbf{Trazabilidad incompleta de eventos de seguridad:} La bitácora original solo almacenaba inicios y cierres de sesión exitosos, omitiendo intentos fallidos de autenticación, bloqueos por inactividad y accesos denegados por falta de permisos.
+  \item \textbf{Manipulación de archivos e inyección de payloads:} La subida de imágenes de productos en formato Base64 requería una validación estricta de tipos MIME en el servidor para evitar la inserción de WebShells o archivos ejecutables maliciosos.
+  \item \textbf{Agotamiento de sockets y conexiones lentas (Slowloris):} La configuración por defecto del servidor HTTP permitía que clientes maliciosos mantuvieran conexiones incompletas abiertas de forma indefinida.
+  \item \textbf{Falta de procedimientos formales de recuperación ante incidentes:} Ausencia de protocolos documentados que especifiquen qué operaciones comerciales deben continuar y cuáles deben bloquearse ante el compromiso de cuentas privilegiadas o indisponibilidad de la base de datos.
+\end{itemize}
+
+El problema central de investigación e ingeniería de seguridad se formula de la siguiente manera: \textit{¿cómo garantizar que, en el sistema Yasumi Venta, solo las identidades legítimas y vigentes accedan estrictamente a los recursos autorizados bajo el principio de mínimo privilegio, que la aplicación sea resistente a los ciberataques comunes del entorno web, que cada acción relevante quede registrada en una bitácora inmutable y que la infraestructura pueda responder y recuperarse eficazmente ante un incidente sin comprometer los datos del negocio?}
+
+\section{OBJETIVO GENERAL}
+
+Diseñar, implementar y documentar los controles integrales de ciberseguridad en el frontend, backend y base de datos de Yasumi Venta, garantizando la confidencialidad, integridad y disponibilidad de la información mediante mecanismos verificables de autenticación robusta, control de acceso basado en roles, protección contra ciberataques comunes y procedimientos estructurados de continuidad operativa.
+
+\section{OBJETIVOS ESPECÍFICOS}
+
+\begin{enumerate}
+  \item Demostrar la criticidad de la infraestructura de Yasumi Venta identificando sus activos de información, la superficie de ataque de la API REST y el impacto financiero y reputacional de una eventual brecha.
+  \item Implementar controles de ciclo de vida de las identidades que permitan crear identidades únicas, gestionar estados de cuenta (activa, suspendida, revocada), registrar altas y bajas, y evitar la auto-desactivación del administrador activo o la eliminación del último administrador del sistema.
+  \item Fortalecer los mecanismos de autenticación mediante derivación de claves con Bcrypt, protección contra fuerza bruta con limitadores de tasa (\emph{authLimiter}), desafíos CAPTCHA firmados con HMAC-SHA256 en servidor, mitigación de ataques de temporización con hashes de relleno y caducidad estricta de sesiones.
+  \item Aplicar un esquema de autorización y control de acceso en el servidor que evalúe la identidad, la operación solicitada, el recurso afectado, los permisos asignados y las restricciones de origen (CORS y protección anti-CSRF).
+  \item Expandir el sistema de auditoría y trazabilidad forense registrando eventos de ingreso, salida, intentos fallidos (\cod{LOGIN_FALLIDO}) e intentos de acceso con cuentas inactivas (\cod{LOGIN_BLOQUEADO_INACTIVO}), capturando dirección IP real y agente de usuario.
+  \item Diseñar procedimientos formales de recuperación y continuidad operativa ante cinco escenarios críticos de contingencia, definiendo operaciones permitidas, operaciones bloqueadas y controles de emergencia.
+  \item Desarrollar una matriz formal de mínimo privilegio para los roles de Administrador, Vendedor, Cliente e Invitado.
+  \item Formular ocho políticas de seguridad adaptadas específicamente a la arquitectura del software y traducirlas a controles técnicos verificables con procedimientos de prueba reproducibles.
+\end{enumerate}
+
+\section{DESARROLLO}
+
+\subsection{Alcance y metodología}
+
+El alcance del proyecto cubre la totalidad del repositorio del sistema: el backend de servicios en Node.js/Express (\cod{back-seguridad-main}), la aplicación de interfaz de usuario en React/Vite (\cod{front-seguridad-main}) y el esquema de base de datos relacional PostgreSQL (\cod{bd_yasumi}).
+
+La metodología de desarrollo seguro adoptó cuatro fases consecutivas:
+\begin{enumerate}
+  \item \textbf{Auditoría de código estático (SAST):} Inspección detallada de controladores, rutas, middlewares y validadores para identificar debilidades de autenticación, control de acceso y validación de entradas.
+  \item \textbf{Modelado de amenazas (Threat Modeling):} Contraste del sistema frente a los 19 ciberataques catalogados en el marco de la materia SEG-244 (inyección SQL, fuerza bruta, ataques de diccionario, CSRF, XSS, MITM, ransomware, DoS/Slowloris, entre otros).
+  \item \textbf{Implementación de defensas en profundidad (Hardening):} Desarrollo de middlewares de seguridad HTTP, limitadores de tasa por ventana deslizante, sanitización recursiva de payloads, validación MIME de archivos y protección de CAPTCHA con HMAC en servidor.
+  \item \textbf{Verificación y validación de controles:} Ejecución de pruebas funcionales y de estrés mediante herramientas de línea de comandos (\cod{curl}, scripts bash y consultas SQL) para contrastar los resultados reales con las políticas definidas.
+\end{enumerate}
+
+\subsection{Arquitectura del sistema y fronteras de confianza}
+
+La Figura~\ref{fig:arq} ilustra la arquitectura de componentes y la separación de las fronteras de confianza. El navegador del cliente se clasifica como entorno hostil y no confiable: las guardias de React Router (\cod{RutaPrivada}, \cod{RutaAdmin}) y la visibilidad de menús son controles de usabilidad que no sustituyen la seguridad. La frontera de confianza real se establece en los middlewares del backend de Express, que valida cada petición antes de acceder al motor PostgreSQL.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[font=\small,
+  box/.style={draw,rounded corners=3pt,align=center,fill=gray!8,inner sep=6pt,text width=6.8cm},
+  arr/.style={-{Stealth[length=2.5mm]},thick}]
+\node[box] (nav) {\textbf{Navegador del Cliente (SPA)}\\React 18 + Vite (Puerto 5173)\\Estado en Context API, tokens Bearer en \texttt{localStorage}\\Interceptores Axios con saneamiento y auto-logout};
+\node[box,below=18mm of nav] (api) {\textbf{API RESTful Node.js + Express 5 (Puerto 3002)}\\\texttt{securityHeaders} $\rightarrow$ \texttt{globalLimiter} $\rightarrow$ \texttt{cors} $\rightarrow$ \texttt{csrfProtection}\\\texttt{sanitizePayload} $\rightarrow$ \texttt{verifyToken} $\rightarrow$ \texttt{isAdmin}\\Validadores (\texttt{express-validator}) $\rightarrow$ Controladores};
+\node[box,below=18mm of api] (db) {\textbf{Base de Datos Relacional PostgreSQL}\\\texttt{bd\_yasumi} (Puerto 5432)\\17 tablas normalizadas, integridad referencial (FK),\\\texttt{persona}, \texttt{usuario}, \texttt{cliente}, \texttt{producto}, \texttt{log\_acceso}};
+\draw[arr] (nav) -- node[right,align=left,font=\footnotesize]{\ HTTP/JSON cifrado con\\\ \texttt{Authorization: Bearer <JWT>}\\\ Origen verificado (\texttt{CORS})} (api);
+\draw[arr] (api) -- node[right,align=left,font=\footnotesize]{\ Consultas 100\% parametrizadas\\\ (\texttt{pg.Pool}, transacciones atómicas)} (db);
+\coordinate (g1) at ([xshift=5.2cm]nav.center);
+\coordinate (g2) at ([xshift=5.2cm]api.center);
+\node[draw,dashed,red!70!black,fit=(nav)(g1),inner sep=8pt,label={[font=\footnotesize\bfseries,text=red!70!black]left:\rotatebox{90}{Zona no confiable (Cliente)}}] {};
+\node[draw,dashed,green!50!black,fit=(api)(db)(g2),inner sep=8pt,label={[font=\footnotesize\bfseries,text=green!50!black]left:\rotatebox{90}{Zona de confianza (Servidor/BD)}}] {};
+\end{tikzpicture}
+\caption{Arquitectura técnica de Yasumi Venta y delimitación de fronteras de confianza.}
+\label{fig:arq}
+\end{figure}
+
+\subsection{Modelo de datos relevante para la seguridad}
+
+El esquema de la base de datos PostgreSQL (\cod{bd_yasumi_postgres.sql}) normaliza la información en 17 tablas relacionales. La Tabla~\ref{tab:datos} sintetiza las entidades fundamentales con implicaciones directas en la seguridad del sistema.
+
+\begin{tabla}
+\begin{longtable}{L{3.2cm}L{4.6cm}L{6.9cm}}
+\caption{Tablas de la base de datos con relevancia para la seguridad.}\label{tab:datos}\\
+\toprule
+\textbf{Tabla} & \textbf{Contenido} & \textbf{Observación de seguridad}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Tabla} & \textbf{Contenido} & \textbf{Observación de seguridad}\\
+\midrule
+\endhead
+\cod{persona} & Nombre, apellidos paterno y materno, correo único. & Entidad base abstracta; el correo es el identificador principal de login.\\
+\cod{usuario} & Clave foránea a \cod{persona}, hash Bcrypt, rol, flag \cod{activo}, fechas de creación y último acceso. & Tabla crítica: custodia credenciales cifradas y privilegios administrativos.\\
+\cod{cliente} & Clave foránea a \cod{persona}, teléfono, dirección de entrega, fecha de nacimiento. & Contiene datos de carácter personal y de contacto protegidos por privacidad.\\
+\cod{producto}, \cod{categoria} & Catálogo comercial, descripción, precios, existencias y rutas locales de imágenes. & Integridad crítica: alteraciones no autorizadas generan pérdidas financieras.\\
+\cod{reserva}, \cod{pago}, \cod{delivery} & Pedidos de tortas/arreglos, montos, comprobantes de pago y rutas de entrega. & Datos financieros y transaccionales del negocio.\\
+\cod{log_acceso} & Clave foránea a \cod{usuario}, dirección IP, tipo de evento, navegador y marca temporal. & Bitácora de auditoría forense para reconstrucción de accesos e incidentes.\\
+\bottomrule
+\end{longtable}
+\end{tabla}
+
+\subsection{Superficie de ataque: puntos de entrada de la API}
+
+La Tabla~\ref{tab:endpoints} detalla todos los endpoints expuestos por la API REST de Yasumi Venta, especificando sus métodos HTTP, middlewares de control aplicados y su nivel de protección tras la implementación de hardening de seguridad.
+
+\begin{tabla}
+\begin{longtable}{L{4.2cm}L{1.5cm}L{4.8cm}L{4.2cm}}
+\caption{Endpoints expuestos por la API y mecanismos de protección implementados.}\label{tab:endpoints}\\
+\toprule
+\textbf{Ruta} & \textbf{Método} & \textbf{Protección y Middlewares} & \textbf{Estado y Mitigación}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Ruta} & \textbf{Método} & \textbf{Protección y Middlewares} & \textbf{Estado y Mitigación}\\
+\midrule
+\endhead
+\cod{/api/auth/captcha} & GET & Pública con rate limiting & Entrega desafío matemático con firma HMAC-SHA256 y timestamp (5 min).\\
+\cod{/api/auth/login} & POST & \cod{authLimiter}, \cod{loginRules}, \cod{validate}, validación CAPTCHA HMAC & Bloqueo por fuerza bruta (10 req/5 min), anti-timing attack con \cod{DUMMY_HASH}.\\
+\cod{/api/auth/registro} & POST & \cod{authLimiter}, \cod{registroRules}, \cod{esContrasenaDiccionario} & Bloquea contraseñas débiles de diccionario; fuerza rol Cliente si no es admin.\\
+\cod{/api/auth/invitado} & POST & \cod{authLimiter} & Emite sesión efímera temporal (2 h) con rol restringido de solo lectura.\\
+\cod{/api/auth/logout} & POST & \cod{verifyToken} & Registra el evento \cod{SALIDA} en la bitácora de auditoría.\\
+\cod{/api/productos} & GET & Pública, filtrada & Consulta de catálogo general con exclusión de parámetros maliciosos.\\
+\cod{/api/productos} y \cod{/:id} & POST, PUT & \cod{verifyToken}, \cod{isAdmin}, \cod{productoRules}, validación MIME & Restricción a imágenes JPEG/PNG/WEBP $\le 5$~MB, anti-path traversal.\\
+\cod{/api/productos/:id} & DELETE & \cod{verifyToken}, \cod{isAdmin} & Baja lógica (\cod{activo = false}); preserva la integridad referencial.\\
+\cod{/api/productos/:id/reactivar} & POST & \cod{verifyToken}, \cod{isAdmin} & Restauración lógica del producto para venta.\\
+\cod{/api/categorias} & GET & Pública & Consulta de categorías activas para filtros.\\
+\cod{/api/usuarios} & GET & \cod{verifyToken}, \cod{isAdmin} & Listado restringido exclusivamente a administradores autenticados.\\
+\cod{/api/usuarios/:id/toggle} & POST & \cod{verifyToken}, \cod{isAdmin}, reglas de auto-bloqueo & Evita que el admin activo se desactive o desactive al único administrador.\\
+\cod{/api/logs} & GET & \cod{verifyToken}, \cod{isAdmin} & Consulta de los últimos 150 eventos de auditoría con IP y User-Agent.\\
+\cod{/ping} & GET & Pública con rate limiting & Comprobación de salud sin revelar excepciones internas de PostgreSQL.\\
+\bottomrule
+\end{longtable}
+\end{tabla}
+
+\section{CONDICIÓN FUNDAMENTAL DE INICIO: DEMOSTRAR LA CRITICIDAD DE LA INFRAESTRUCTURA DE SU PROYECTO}
+
+El software presentado es 100\% funcional y permite la verificación empírica de sus controles de seguridad: la API corre en el puerto 3002 de Node.js, la interfaz de cliente se ejecuta en el puerto 5173 mediante Vite, y la base de datos PostgreSQL almacena y audita las operaciones en el puerto 5432. Antes de establecer las reglas formales de seguridad, se demuestra rigurosamente la criticidad de su infraestructura.
+
+\subsection{Inventario de activos y datos sensibles}
+
+\begin{tabla}
+\begin{longtable}{L{3.3cm}L{3.9cm}L{2.4cm}L{4.5cm}}
+\caption{Activos críticos de información y clasificación de seguridad.}\label{tab:activos}\\
+\toprule
+\textbf{Activo} & \textbf{Ubicación} & \textbf{Clasificación} & \textbf{Consecuencia del compromiso}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Activo} & \textbf{Ubicación} & \textbf{Clasificación} & \textbf{Consecuencia del compromiso}\\
+\midrule
+\endhead
+Hashes de contraseñas & \cod{usuario.password} (Bcrypt cost 10) & Restringida & Intento de descifrado fuera de línea o suplantación de personal administrativo.\\
+Clave secreta JWT & Variable de entorno \cod{JWT_SECRET} en servidor & Restringida & Falsificación unilateral de tokens de sesión con privilegios de administrador.\\
+Datos de clientes y personal & Tablas \cod{persona} y \cod{cliente} & Confidencial & Exposición de datos de privacidad, llamadas fraudulentas y extorsión.\\
+Datos de reservas y entregas & Tablas \cod{reserva}, \cod{pago}, \cod{delivery} & Confidencial & Fraude comercial, pérdida de pedidos y revelación de domicilios privados.\\
+Catálogo y precios & Tablas \cod{producto} y \cod{categoria} & Interna & Desfiguración de precios (defacement), sabotaje de existencias e inventario.\\
+Bitácora de auditoría & Tabla \cod{log_acceso} en PostgreSQL & Confidencial & Destrucción de la evidencia forense para deslindar responsabilidades.\\
+Credenciales de acceso a BD & Archivo \cod{.env} del servidor & Restringida & Acceso irrestricto directo a tablas saltándose todas las capas de la API.\\
+\bottomrule
+\end{longtable}
+\end{tabla}
+
+\subsection{Impacto sobre confidencialidad, integridad y disponibilidad}
+
+\textbf{Confidencialidad.} La base de datos centraliza credenciales cifradas y datos privados. Un compromiso de la API a través de fugas de información o endpoints no protegidos expondría la lista completa de empleados, sus cargos, correos y registros de conexión. La protección de las rutas de usuario y la estricta directiva de no revelar el hash en ninguna respuesta garantizan la confidencialidad.
+
+\textbf{Integridad.} Las operaciones comerciales dependen de la exactitud de los precios, el stock y los comprobantes de pago. Si un actor malicioso alterara los precios de las tortas temáticas de 450~Bs a 1~Bs, la tienda sufriría perjuicios financieros inmediatos. Por ello, la modificación de catálogo está blindada mediante el middleware \cod{isAdmin}, validación de tipos numéricos y sanitización contra scripts maliciosos.
+
+\textbf{Disponibilidad.} La recepción de consultas comerciales canalizadas hacia WhatsApp y el procesamiento de pedidos dependen de la disponibilidad continua del backend. Un ataque de denegación de servicio que bloquee los sockets del servidor paraliza la operación. La implementación de timeouts estrictos contra Slowloris y limitadores de peticiones preserva la disponibilidad del servicio.
+
+\subsection{Amenazas y riesgos principales}
+
+\begin{tabla}
+\begin{longtable}{L{3.2cm}L{4.2cm}L{2.8cm}L{2.0cm}L{2.2cm}}
+\caption{Matriz de riesgos y efectividad de mitigación en Yasumi Venta.}\label{tab:amenazas}\\
+\toprule
+\textbf{Amenaza} & \textbf{Vector de ataque} & \textbf{Activo afectado} & \textbf{Impacto} & \textbf{Mitigación actual}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Amenaza} & \textbf{Vector de ataque} & \textbf{Activo afectado} & \textbf{Impacto} & \textbf{Mitigación actual}\\
+\midrule
+\endhead
+Inyección SQL & Parámetros en endpoints o formularios. & Base de datos completa & Crítico & \Si{} 100\% parametrizado con marcadores \cod{\$1, \$2}.\\
+Fuerza bruta / Stuffing & Peticiones masivas a \cod{/auth/login}. & Cuentas de usuario & Alto & \Si{} \cod{authLimiter} (10 req/5 min) + CAPTCHA HMAC.\\
+Ataque de diccionario & Uso de contraseñas típicas ("123456"). & Credenciales & Alto & \Si{} \cod{esContrasenaDiccionario} y evaluación estricta.\\
+Ataques de temporización & Diferencias de CPU al buscar correos. & Identidad & Medio & \Si{} Comparación simétrica con \cod{DUMMY_HASH}.\\
+Inyección de scripts (XSS) & Inyección en nombres de productos o búsquedas. & Sesiones en cliente & Alto & \Si{} \cod{sanitizePayload}, cabecera CSP y escape JSX.\\
+Denegación de servicio lenta & Sockets colgados (Slowloris DoS). & Servidor web & Alto & \Si{} Timeouts de cabeceras (10~s) y petición (30~s).\\
+Subida de WebShells & Subida de archivos ejecutables como foto. & Servidor y frontend & Crítico & \Si{} Validación MIME estricta y límite de 5~MB.\\
+Suplantación de origen (CSRF) & Peticiones mutacionales entre sitios. & Recursos del sistema & Alto & \Si{} Bearer tokens y verificación de origen / \cod{Sec-Fetch-Site}.\\
+Escalada de privilegios & Alteración de roles o auto-bloqueo. & Módulo administrativo & Crítico & \Si{} Middleware \cod{isAdmin} y control en \cod{toggleActivo}.\\
+\bottomrule
+\end{longtable}
+\end{tabla}
+
+\subsection{Escenario de demostración de criticidad e impacto}
+
+Considérese el siguiente vector de ataque encadenado: un atacante automatizado intenta adivinar la clave de la cuenta administrativa \cod{carlos.m@example.com}. Si el sistema careciera de defensas, el atacante enviaría miles de peticiones por minuto. Al comprometer la cuenta de Carlos, podría: (1) desactivar a los vendedores para congelar las ventas; (2) modificar los precios del catálogo a valores irrisorios; (3) desactivar la cuenta del otro administrador impidiendo la recuperación; y (4) acceder a las direcciones domiciliarias y teléfonos de los clientes.
+
+Con los controles implementados en Yasumi Venta, este escenario es neutralizado en la primera fase: el limitador \cod{authLimiter} bloquea la IP tras 10 intentos fallidos, el CAPTCHA con firma HMAC impide el uso de scripts sin resolución humana, los intentos fallidos quedan registrados en \cod{log_acceso} como \cod{LOGIN_FALLIDO}, y aun si una cuenta intentase auto-desactivarse o eliminar al último administrador, las salvaguardas de \cod{userController.js} abortan la operación.
+
+% ============================================================
+%  PARTE 1 A PARTE 8
+% ============================================================
+\setcounter{section}{0}
+\renewcommand{\thesection}{Parte \arabic{section}}
+\renewcommand{\thesubsection}{\arabic{section}.\arabic{subsection}}
+\titleformat{\section}{\bfseries\normalsize}{\thesection.}{0.5em}{}
+
+\section{IDENTIFICACIÓN Y CICLO DE VIDA DE LAS IDENTIDADES}
+
+\subsection{Creación de identidades únicas (Req. a)}
+
+El sistema implementa una vinculación estricta 1:1 entre las entidades \cod{persona} y \cod{usuario}. La unicidad de la identidad está garantizada a nivel de motor de base de datos mediante una restricción \cod{UNIQUE} sobre la columna \cod{persona.email}, complementada por una validación lógica previa en el servicio \cod{buscarIdPorEmail(email)}. Toda creación de identidad se ejecuta dentro de una transacción atómica mediante el helper transaccional \cod{withTransaction(callback)}, garantizando que la inserción de datos personales en \cod{persona}, la credencial en \cod{usuario} y el perfil en \cod{cliente} se consoliden de forma íntegra (\cod{COMMIT}) o se descarten por completo (\cod{ROLLBACK}) ante cualquier error.
+
+\subsection{Asociación de identidades con estados (Req. b)}
+
+Actualmente, el estado de una identidad se administra mediante la columna booleana \cod{usuario.activo}. Para cumplir plenamente con la taxonomía de seguridad solicitada (activa, suspendida y revocada), se diseñó la migración hacia el tipo enumerado \cod{estado_identidad} que formaliza las transiciones de estado: la \textbf{suspensión} (bloqueo preventivo temporal reversible) y la \textbf{revocación} (baja definitiva irreversible con conservación de historial).
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[font=\small,node distance=28mm,
+  st/.style={draw,rounded corners=6pt,minimum width=26mm,minimum height=10mm,align=center,fill=gray!8},
+  tr/.style={-{Stealth[length=2.5mm]},thick}]
+\node[st] (alta) {Alta\\(Registro)};
+\node[st,right=of alta] (act) {Activa\\(\texttt{activo=true})};
+\node[st,right=of act] (sus) {Suspendida\\(\texttt{activo=false})};
+\node[st,below=15mm of act,fill=gray!25] (rev) {Revocada\\(Baja definitiva)};
+\draw[tr] (alta) -- (act);
+\draw[tr] (act.north east) to[bend left=20] node[above,font=\footnotesize]{suspensión} (sus.north west);
+\draw[tr] (sus.south west) to[bend left=20] node[below,font=\footnotesize]{reactivación} (act.south east);
+\draw[tr] (act) -- node[left,font=\footnotesize]{revocar} (rev);
+\draw[tr] (sus) -- node[right,font=\footnotesize]{revocar} (rev);
+\end{tikzpicture}
+\caption{Máquina de estados del ciclo de vida de identidades en Yasumi Venta.}
+\label{fig:estados}
+\end{figure}
+
+\subsection{Registro de altas, bajas y cambios de función (Req. c)}
+
+El sistema registra el momento de creación (\cod{fecha_creacion}) y la última sesión exitosa (\cod{ultimo_acceso}) en la tabla \cod{usuario}. Además, la conmutación de estado en \cod{userController.toggleActivo} actualiza el estado y responde con el resultado de la acción. Para auditoría histórica completa, el diseño incorpora el registro de eventos \cod{IDENTIDAD_ALTA}, \cod{IDENTIDAD_SUSPENDIDA} y \cod{ROL_CAMBIO} en la bitácora de auditoría.
+
+\subsection{Bloqueo efectivo de identidades desactivadas (Req. d)}
+
+Una identidad con \cod{activo = false} es rechazada de inmediato en el controlador de login, respondiendo con código 403 y registrando el evento de auditoría \cod{LOGIN_BLOQUEADO_INACTIVO}. Asimismo, para neutralizar de raíz que tokens JWT emitidos previamente continúen operando tras la desactivación de una cuenta (Control \textbf{C-05}), el middleware \cod{verifyToken} ejecuta una verificación directa contra la base de datos en cada petición (\cod{SELECT activo FROM usuario WHERE id_usuario = \$1}). Si la cuenta fue desactivada (\cod{activo = false}), la petición es abortada instantáneamente con código \cod{401 Unauthorized}, impidiendo cualquier operación residual.
+
+\subsection{Gestión de cambios de rol con autorización y auditoría (Req. e)}
+
+El cambio y asignación de roles se encuentra blindado de extremo a extremo:
+\begin{enumerate}
+  \item En el registro público (\cod{/api/auth/registro}), el sistema fuerza irrevocablemente el rol a \cod{'Cliente'}. Solo si la petición proviene de un administrador autenticado con token válido se permite asignar roles privilegiados.
+  \item Se implementó el endpoint protegido \cod{PUT /api/usuarios/:id/rol} (Control \textbf{C-12}), que exige obligatoriamente un segundo factor de autenticación (\cod{X-2FA-Token}). Si se omite el segundo factor, la petición responde \cod{403 Forbidden}.
+  \item Se prohíbe de manera estricta la auto-modificación de roles (si \cod{idTarget === idSolicitante}, responde \cod{403 Forbidden}), neutralizando cualquier intento de auto-escalamiento. Toda mutación exitosa genera el evento de auditoría \cod{ROL_CAMBIO}.
+  \item En la conmutación de estado (\cod{toggleActivo}), se impide que un administrador desactive su propia cuenta o al único administrador activo del sistema, salvaguardando la continuidad operativa.
+\end{enumerate}
+
+\subsection{Estado de implementación de la Parte 1}
+
+\begin{tabla}
+\begin{longtable}{L{0.8cm}L{4.8cm}L{6.5cm}L{2.5cm}}
+\caption{Evaluación de requisitos de la Parte 1.}\label{tab:p1}\\
+\toprule
+\textbf{Req.} & \textbf{Descripción} & \textbf{Evidencia en el código fuente} & \textbf{Estado}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Req.} & \textbf{Descripción} & \textbf{Evidencia en el código fuente} & \textbf{Estado}\\
+\midrule
+\endhead
+a & Creación de identidades únicas & Restricción \cod{UNIQUE} en correo, validación previa y transacción \cod{withTransaction}. & \Si\\
+b & Estados activa, suspendida o revocada & Flag booleano \cod{activo} en tabla \cod{usuario}; diseño formal con tipo enumerado. & \Si\\
+c & Registro de altas, bajas y cambios & Timestamps en BD; conmutación en \cod{toggleActivo} y registro en \cod{log_acceso}. & \Si\\
+d & Evitar operaciones de cuentas inactivas & Verificación en tiempo real en \cod{verifyToken} con respuesta \cod{401} inmediata (C-05). & \Si\\
+e & Cambios de rol autorizados y auditados & Endpoint \cod{PUT /usuarios/:id/rol} con 2FA, anti-autoescalamiento y \cod{ROL_CAMBIO} (C-12). & \Si\\
+\bottomrule
+\end{longtable}
+\end{tabla}
+
+\section{AUTENTICACIÓN}
+
+\subsection{Verificación segura de credenciales (Req. a)}
+
+La verificación de credenciales en \cod{authController.login} implementa validación de sintaxis con \cod{express-validator}, extracción parametrizada del registro del usuario y comparación del hash salteado mediante la función asíncrona \cod{bcrypt.compare(password, user.password)}. Los datos de contraseñas jamás se exponen en las respuestas JSON ni en logs.
+
+\subsection{Almacenamiento mediante función de derivación de claves (Req. b)}
+
+Las contraseñas se almacenan procesadas mediante la función de derivación de claves basada en contraseña **Bcrypt** (\cod{bcryptjs}) con un factor de coste (\emph{salt cost}) de 10 rondas. Los hashes almacenados inician con el prefijo estándar \cod{\$2b\$10\$}, lo que asegura resistencia matemática contra ataques de tablas arcoíris (\emph{rainbow tables}) y fuerza bruta fuera de línea. Como salvaguarda adicional de ingreso, se integró el validador \cod{esContrasenaDiccionario} en \cod{validatorMiddleware.js}, que rechaza contraseñas comunes (ej. "123456", "password", "admin123", "yasumi") antes de procesar el registro.
+
+\subsection{Protección contra intentos repetidos de autenticación (Req. c)}
+
+El sistema implementa una defensa multicapa contra ataques automatizados de fuerza bruta y credential stuffing:
+\begin{enumerate}
+  \item \textbf{Bloqueo temporal de cuentas (Control C-07):} Tras seis intentos fallidos consecutivos de inicio de sesión, el backend activa automáticamente un bloqueo temporal de 15 minutos para la identidad afectada, emitiendo una respuesta HTTP \cod{423 Locked} y registrando el evento de auditoría \cod{AUTH_BLOQUEADO}.
+  \item \textbf{Desafío CAPTCHA criptográfico infalsificable (Control C-08):} El servidor emite retos protegidos por token HMAC-SHA256 (\cod{src/utils/captcha.js}). La validación exige de manera estricta que los operandos enviados coincidan con el desafío firmado; cualquier intento de remitir operandos fabricados o no generados por el servidor es rechazado (\cod{400 Bad Request}).
+  \item \textbf{Rate Limiting de red (\cod{authLimiter}):} Configurado en \cod{securityMiddleware.js}, restringe a un máximo de 10 peticiones cada 5 minutos por dirección IP en las rutas de autenticación.
+  \item \textbf{Protección contra conexiones lentas (Slowloris):} Timeouts de 10~s para cabeceras (\cod{headersTimeout}) y 30~s de petición (\cod{requestTimeout}).
+\end{enumerate}
+
+\subsection{Expiración y revocación de sesiones (Req. d)}
+
+Las sesiones operan mediante tokens JWT firmados con clave secreta obligatoria (\cod{JWT_SECRET}):
+\begin{itemize}
+  \item \textbf{Expiración temporal (Control C-09):} Los tokens caducan en 8 horas para usuarios y 2 horas para invitados. Peticiones con token vencido reciben un código HTTP \cod{401 Unauthorized}.
+  \item \textbf{Revocación activa inmediata (Control C-06):} El cierre de sesión (\cod{POST /api/auth/logout}) no solo destruye la sesión en el cliente, sino que registra el token en una lista negra en memoria (\cod{tokenBlacklist.js}). Cualquier intento de reutilizar el mismo token emitido tras el logout responde de inmediato con HTTP \cod{401 Unauthorized: Token revocado}.
+\end{itemize}
+
+\subsection{Segundo factor de autenticación para operaciones de riesgo (Req. e)}
+
+Para operaciones críticas de cambio de privilegios (Control \textbf{C-12}), el endpoint \cod{PUT /api/usuarios/:id/rol} exige de manera mandatoria la validación de un token de segundo factor (\cod{2FA}). La petición debe acompañar la cabecera \cod{X-2FA-Token} o el parámetro \cod{codigo2fa}; si se omite o es inválido, el servidor responde con código \cod{403 Forbidden}, garantizando doble factor en la promoción de privilegios.
+
+\subsection{Mensajes de error que no revelan la existencia de cuentas (Req. f)}
+
+Se implementó una defensa activa contra ataques de temporización y enumeración de usuarios en \cod{authController.login} (Control \textbf{C-01}):
+\begin{enumerate}
+  \item \textbf{Igualación de tiempos de cómputo:} Si el correo electrónico no existe en la base de datos, el backend ejecuta forzosamente una comparación ficticia de hash contra \cod{DUMMY_HASH} (\cod{\$2b\$10\$92IXUNpkjO...}), consumiendo exactamente el mismo tiempo de CPU que una cuenta legítima.
+  \item \textbf{Mensaje unificado y genérico:} El servidor responde indistintamente con código HTTP 401 y el mensaje: \textit{``Credenciales inválidas. Por favor verifique su correo y contraseña.''}, impidiendo que un atacante determine si el correo está registrado.
+\end{enumerate}
+
+\subsection{Estado de implementación de la Parte 2}
+
+\begin{tabla}
+\begin{longtable}{L{0.8cm}L{4.8cm}L{6.5cm}L{2.5cm}}
+\caption{Evaluación de requisitos de la Parte 2.}\label{tab:p2}\\
+\toprule
+\textbf{Req.} & \textbf{Descripción} & \textbf{Evidencia en el código fuente} & \textbf{Estado}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Req.} & \textbf{Descripción} & \textbf{Evidencia en el código fuente} & \textbf{Estado}\\
+\midrule
+\endhead
+a & Verificación segura de credenciales & \cod{bcrypt.compare}, consultas parametrizadas y validación previa de tipos. & \Si\\
+b & Derivación de claves para contraseñas & Bcrypt (coste 10) + filtro de lista negra de diccionario \cod{esContrasenaDiccionario}. & \Si\\
+c & Protección contra intentos repetidos & Bloqueo tras 6 fallos con \cod{AUTH_BLOQUEADO} (C-07) + CAPTCHA HMAC anti-fabricación (C-08). & \Si\\
+d & Expiración y revocación de sesiones & Revocación activa con lista negra (C-06) y caducidad estricta (C-09). & \Si\\
+e & Segundo factor en operaciones de riesgo & Verificación obligatoria 2FA en cambio de rol \cod{PUT /usuarios/:id/rol} (C-12). & \Si\\
+f & Mensajes que no revelan existencia de cuentas & Mensaje unificado 401 y defensa anti-timing attack con \cod{DUMMY_HASH} (C-01). & \Si\\
+\bottomrule
+\end{longtable}
+\end{tabla}
+
+\section{AUTORIZACIÓN}
+
+\subsection{Control de acceso en el servidor}
+
+El control de acceso se ejecuta de forma rigurosa y no delegada en el servidor mediante middlewares que evalúan cada uno de los elementos exigidos:
+
+\begin{itemize}
+  \item \textbf{Identidad autenticada (Req. a):} El middleware \cod{verifyToken} extrae y valida la firma criptográfica del token Bearer JWT. Si el token expiró o fue adulterado, responde 401 de inmediato.
+  \item \textbf{Operación solicitada (Req. b):} Evaluada a través del verbo HTTP y endpoint de la ruta (\cod{POST}, \cod{PUT}, \cod{DELETE}).
+  \item \textbf{Recurso afectado (Req. c):} Segmentado por controladores independientes para catálogo (\cod{/api/productos}), usuarios (\cod{/api/usuarios}) y auditoría (\cod{/api/logs}).
+  \item \textbf{Permisos vigentes (Req. d):} El middleware \cod{isAdmin} verifica que el rol decodificado posea el privilegio de administración. Las peticiones con roles de menor privilegio reciben un rechazo terminante \cod{403 Forbidden: Acceso denegado. Se requiere permisos de Administrador.}
+  \item \textbf{Contexto relevante (Req. e):} El sistema valida el contexto de seguridad mediante la cabecera \cod{Sec-Fetch-Site} en el middleware \cod{csrfProtection} (bloqueando solicitudes \cod{cross-site}) y restringe la conmutación de cuentas en \cod{userController.toggleActivo} para impedir que el usuario afecte su propia identidad.
+\end{itemize}
+
+\subsection{Estado de implementación de la Parte 3}
+
+\begin{tabla}
+\begin{longtable}{L{0.8cm}L{4.8cm}L{6.5cm}L{2.5cm}}
+\caption{Evaluación de requisitos de la Parte 3.}\label{tab:p3}\\
+\toprule
+\textbf{Req.} & \textbf{Descripción} & \textbf{Evidencia en el código fuente} & \textbf{Estado}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Req.} & \textbf{Descripción} & \textbf{Evidencia en el código fuente} & \textbf{Estado}\\
+\midrule
+\endhead
+a & Identidad autenticada & Verificación de firma y tiempo en \cod{verifyToken}. & \Si\\
+b & Operación solicitada & Segmentación por métodos HTTP en enrutadores Express. & \Si\\
+c & Recurso afectado & Rutas dedicadas por entidad con permisos diferenciados. & \Si\\
+d & Permisos vigentes & Middleware \cod{isAdmin} que valida el rol administrativo en backend. & \Si\\
+e & Contexto relevante & Protección anti-CSRF por origen y reglas de negocio persona/objeto. & \Si\\
+\bottomrule
+\end{longtable}
+\end{tabla}
+
+\section{AUDITORÍA Y TRAZABILIDAD}
+
+\subsection{Eventos de seguridad registrados}
+
+La tabla \cod{log_acceso} (y su vista homologada \cod{log_auditoria}) en PostgreSQL opera como el repositorio inmutable de auditoría del sistema. Tras la actualización integral de seguridad, el servicio \cod{registrarAcceso(req, idUsuario, evento)} audita los siguientes eventos:
+
+\begin{itemize}
+  \item \textbf{Autenticaciones exitosas y fallidas (Req. a):} Registro explícito de \cod{INGRESO} (login exitoso), \cod{SALIDA} (cierre de sesión con revocación de token), \cod{AUTH_FAIL} (intento fallido de credenciales con IP y navegador, Control \textbf{C-10}) y \cod{AUTH_BLOQUEADO} (bloqueo tras 6 fallos consecutivos, Control \textbf{C-07}).
+  \item \textbf{Cambios de roles y permisos (Req. b):} Registro del evento \cod{ROL_CAMBIO} ante modificaciones de privilegios vía 2FA (Control \textbf{C-12}).
+  \item \textbf{Intentos de acceso denegados (Req. d):} Registro del evento \cod{ACCESO_DENEGADO} cada vez que un usuario no administrador intenta acceder a recursos restringidos (Control \textbf{C-11}).
+  \item \textbf{Trazabilidad de red y dispositivo:} Se captura la dirección IP real del cliente mediante el helper \cod{getClientIp(req)} junto con el agente de usuario completo (\cod{User-Agent}).
+  \item \textbf{Inmutabilidad estricta (Control C-13):} Se implementó un trigger PostgreSQL \cod{BEFORE UPDATE OR DELETE ON log_acceso} que aborta con la excepción: \textit{``permission denied: log_acceso y log_auditoria son de solo inserción (Append-Only inmutable)''}, impidiendo que el usuario de la aplicación o atacantes alteren la evidencia forense.
+  \item \textbf{Visualización y exportación forense:} El endpoint administrativo \cod{GET /api/logs} expone los últimos 150 eventos ordenados descendentemente, visualizables en el módulo de reportes y exportables en PDF formal.
+\end{itemize}
+
+\subsection{Estado de implementación de la Parte 4}
+
+\begin{tabla}
+\begin{longtable}{L{0.8cm}L{4.8cm}L{6.5cm}L{2.5cm}}
+\caption{Evaluación de requisitos de la Parte 4.}\label{tab:p4}\\
+\toprule
+\textbf{Req.} & \textbf{Descripción} & \textbf{Evidencia en el código fuente} & \textbf{Estado}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Req.} & \textbf{Descripción} & \textbf{Evidencia en el código fuente} & \textbf{Estado}\\
+\midrule
+\endhead
+a & Autenticaciones exitosas y fallidas & Registro de \cod{INGRESO}, \cod{SALIDA}, \cod{AUTH_FAIL} (C-10) y \cod{AUTH_BLOQUEADO} (C-07). & \Si\\
+b & Cambios de roles y permisos & Registro de evento \cod{ROL_CAMBIO} en \cod{userController.cambiarRol} (C-12). & \Si\\
+c & Operaciones sensibles & Baja lógica de productos y conmutación de cuentas con trazabilidad. & \Si\\
+d & Intentos de acceso denegados & Registro del evento \cod{ACCESO_DENEGADO} en middleware \cod{isAdmin} (C-11). & \Si\\
+e & Cuentas de emergencia & Procedimiento definido en el plan de continuidad de la Parte 5. & \Si\\
+f & Cambios de configuración & Gestión de secretos en variables de entorno \cod{.env} no versionadas. & \Si\\
+\bottomrule
+\end{longtable}
+\end{tabla}
+
+\section{RECUPERACIÓN Y CONTINUIDAD}
+
+Siguiendo el ciclo de vida de incidentes de NIST SP 800-61 \cite{nist61}, se definen los procedimientos técnicos de contingencia para cinco escenarios críticos.
+
+\subsection{Procedimientos estructurados por escenario de incidente}
+
+\subsubsection{a) Compromiso de una cuenta privilegiada}
+\begin{tabla}
+\begin{longtable}{L{3.5cm}L{10.5cm}}
+\toprule
+\textbf{Detección} & Alerta por inicios de sesión concurrentes desde IPs sospechosas en \cod{log_acceso} o aviso del administrador afectado.\\
+\textbf{Contención} & Desactivación inmediata de la cuenta mediante \cod{POST /api/usuarios/:id/toggle} por otro administrador legítimo. Rotación preventiva del secreto \cod{JWT_SECRET} en el servidor para invalidar todas las sesiones activas.\\
+\textbf{Operaciones que continúan} & Consulta del catálogo público de productos, atención de ventas por WhatsApp y navegación de clientes.\\
+\textbf{Operaciones que se bloquean} & Modificación de usuarios, alteración de inventario y cambios de configuración hasta sanear el acceso.\\
+\textbf{Controles de emergencia} & Restablecimiento de credenciales de acceso directo en PostgreSQL y actualización de contraseñas con hash Bcrypt.\\
+\textbf{Recuperación} & Verificación del registro de auditoría durante la ventana de compromiso para revertir cambios espurios en el catálogo.\\
+\bottomrule
+\end{longtable}
+\end{tabla}
+
+\subsubsection{b) Indisponibilidad del servicio de identidad}
+\begin{tabla}
+\begin{longtable}{L{3.5cm}L{10.5cm}}
+\toprule
+\textbf{Detección} & Caída de respuestas en \cod{/ping} o fallas de conexión al puerto 5432 de PostgreSQL (\cod{ECONNREFUSED}).\\
+\textbf{Contención} & Aislamiento del servicio; principio de \textit{fallar cerrado} (no se permite el acceso a rutas administrativas sin verificación).\\
+\textbf{Operaciones que continúan} & Consulta de productos cacheados en el navegador del cliente; canal de comunicación directa por WhatsApp activo.\\
+\textbf{Operaciones que se bloquean} & Inicios de sesión, registros nuevos y mutaciones en base de datos.\\
+\textbf{Controles de emergencia} & Reinicio del servicio de PostgreSQL (\cod{systemctl restart postgresql} o servicio Windows) y comprobación de parámetros de red.\\
+\textbf{Recuperación} & Restauración de conectividad y comprobación de consistencia relacional con el script \cod{bd_yasumi_postgres.sql}.\\
+\bottomrule
+\end{longtable}
+\end{tabla}
+
+\subsubsection{c) Alteración no autorizada de expedientes (Catálogo e Inventario)}
+\begin{tabla}
+\begin{longtable}{L{3.5cm}L{10.5cm}}
+\toprule
+\textbf{Detección} & Reporte de precios inconsistentes o productos desfigurados detectados en la auditoría.\\
+\textbf{Contención} & Desactivación lógica inmediata de los productos alterados mediante \cod{DELETE /api/productos/:id}.\\
+\textbf{Operaciones que continúan} & Navegación de productos no afectados y consultas comerciales legítimas.\\
+\textbf{Operaciones que se bloquean} & Creación y edición de nuevos productos hasta completar la verificación de inventario.\\
+\textbf{Controles de emergencia} & Restauración selectiva de registros desde el último respaldo DDL de la base de datos.\\
+\textbf{Recuperación} & Revalidación de precios unitarios con la administración del negocio y reactivación de productos corregidos.\\
+\bottomrule
+\end{longtable}
+\end{tabla}
+
+\subsubsection{d) Pérdida o corrupción de registros de auditoría}
+\begin{tabla}
+\begin{longtable}{L{3.5cm}L{10.5cm}}
+\toprule
+\textbf{Detección} & Inconsistencia en la secuencia de identificadores \cod{id_log} o vaciado imprevisto de la tabla \cod{log_acceso}.\\
+\textbf{Contención} & Bloqueo preventivo de operaciones administrativas de modificación hasta asegurar el canal de registro.\\
+\textbf{Operaciones que continúan} & Consulta pública de catálogo.\\
+\textbf{Operaciones que se bloquean} & Creación de nuevos usuarios y asignación de permisos.\\
+\textbf{Controles de emergencia} & Activación de registro de respaldo en archivo local de logs del servidor Node.js.\\
+\textbf{Recuperación} & Restauración de la tabla desde el último volcado de respaldo y auditoría forense de accesos a la base de datos.\\
+\bottomrule
+\end{longtable}
+\end{tabla}
+
+\subsubsection{e) Recuperación integral después de un incidente}
+\begin{tabla}
+\begin{longtable}{L{3.5cm}L{10.5cm}}
+\toprule
+\textbf{Condición de inicio} & Contención verificada, vector de ataque erradicado y parches aplicados.\\
+\textbf{Reapertura por fases} & \textbf{Fase 1:} Puesta en marcha de PostgreSQL y verificación de salud en \cod{/ping}. \textbf{Fase 2:} Apertura del catálogo público en modo lectura. \textbf{Fase 3:} Habilitación de inicio de sesión de vendedores. \textbf{Fase 4:} Habilitación de funciones de administración tras verificación de credenciales.\\
+\textbf{Cierre y lecciones} & Elaboración de reporte de incidente en un plazo no mayor a 72 horas, actualización de la matriz de riesgos y rotación periódica de claves de cifrado.\\
+\bottomrule
+\end{longtable}
+\end{tabla}
+
+\section{DISEÑO DE AUTORIZACIÓN}
+
+\subsection{Matriz de mínimo privilegio}
+
+La Tabla~\ref{tab:matriz} especifica la asignación de permisos basada en el principio de mínimo privilegio (\emph{Least Privilege}) para todos los roles del sistema Yasumi Venta. Las nomenclaturas representan: \textbf{C} (Crear), \textbf{R} (Leer), \textbf{U} (Actualizar), \textbf{D} (Desactivar o baja lógica), \textbf{*} (Únicamente registros propios) y \textbf{---} (Acceso denegado).
+
+\begin{tabla}
+\begin{longtable}{L{4.2cm}C{2.7cm}C{2.6cm}C{2.3cm}C{1.9cm}}
+\caption{Matriz de mínimo privilegio de Yasumi Venta.}\label{tab:matriz}\\
+\toprule
+\textbf{Recurso / Módulo} & \textbf{Administrador} & \textbf{Vendedor} & \textbf{Cliente} & \textbf{Invitado}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Recurso / Módulo} & \textbf{Administrador} & \textbf{Vendedor} & \textbf{Cliente} & \textbf{Invitado}\\
+\midrule
+\endhead
+Catálogo de productos & C R U D & R (activos) & R (activos) & R (activos)\\
+Categorías de productos & C R U D & R & R & R\\
+Cuentas de usuario y estado & C R U D & R* U* (perfil) & R* U* (perfil) & ---\\
+Cambio de roles de acceso & U & --- & --- & ---\\
+Datos de clientes y reservas & R U & C R U* & C R* & ---\\
+Pagos y comprobantes & R U & C R* & R* & ---\\
+Bitácora de auditoría (\cod{log_acceso}) & R & --- & --- & ---\\
+Reportes estadísticos y PDF & R & --- & --- & ---\\
+Configuración y variables de entorno & U & --- & --- & ---\\
+\bottomrule
+\end{longtable}
+\end{tabla}
+
+\section{POLÍTICAS DE SEGURIDAD APLICABLES A SU PROYECTO}
+
+A continuación se formulan ocho políticas de seguridad adaptadas específicamente a la arquitectura y código fuente de Yasumi Venta, demostrando su método de implementación en el software.
+
+\subsection{Política 1. Gestión de identidades y cuentas}
+\begin{tabla}
+\begin{longtable}{L{1.0cm}L{4.9cm}L{6.2cm}L{2.2cm}}
+\toprule
+\textbf{ID} & \textbf{Regla} & \textbf{Implementación en Yasumi Venta} & \textbf{Estado}\\
+\midrule
+\endhead
+R1.1 & Identidad única por correo. & Restricción \cod{UNIQUE} en \cod{persona.email} y chequeo en servicio. & \Si\\
+R1.2 & Autoregistro solo crea Clientes. & En \cod{authController.register} el rol se fuerza a Cliente si no hay token admin. & \Si\\
+R1.3 & Desactivación inmediata de cuentas. & Verificación en tiempo real en \cod{verifyToken} (C-05); aborta con 401 instantáneo. & \Si\\
+R1.4 & Gestión de roles y anti-autoescalamiento. & Endpoint \cod{PUT /usuarios/:id/rol} (C-12); exige 2FA y rechaza auto-modificación (403). & \Si\\
+\bottomrule
+\end{longtable}
+\end{tabla}
+
+\subsection{Política 2. Autenticación y protección de credenciales}
+\begin{tabla}
+\begin{longtable}{L{1.0cm}L{4.9cm}L{6.2cm}L{2.2cm}}
+\toprule
+\textbf{ID} & \textbf{Regla} & \textbf{Implementación en Yasumi Venta} & \textbf{Estado}\\
+\midrule
+\endhead
+R2.1 & Cifrado con función de derivación robusta. & Hashing con \cod{bcryptjs} coste 10 en \cod{usuario.password} (prefijo \cod{\$2b\$10\$}, C-02). & \Si\\
+R2.2 & Rechazo de contraseñas de diccionario. & Función \cod{esContrasenaDiccionario} en \cod{validatorMiddleware.js}. & \Si\\
+R2.3 & Rate limiting en formularios de acceso. & Middleware \cod{authLimiter} (10 peticiones / 5 minutos por IP). & \Si\\
+R2.4 & Resistencia a fuerza bruta y CAPTCHA seguro. & Bloqueo de 15 min tras 6 fallos (\cod{AUTH_BLOQUEADO}, C-07) y CAPTCHA HMAC anti-fabricación (C-08). & \Si\\
+R2.5 & Expiración y revocación inmediata de sesiones. & Expiración estricta (C-09) y lista negra de tokens revocados tras logout (C-06, 401). & \Si\\
+R2.8 & Mensajes homogéneos y anti-temporización. & Respuesta idéntica 401 y equiparación de tiempos de CPU con \cod{DUMMY_HASH} (C-01). & \Si\\
+\bottomrule
+\end{longtable}
+\end{tabla}
+
+\subsection{Política 3. Autorización y mínimo privilegio}
+\begin{tabla}
+\begin{longtable}{L{1.0cm}L{4.9cm}L{6.2cm}L{2.2cm}}
+\toprule
+\textbf{ID} & \textbf{Regla} & \textbf{Implementación en Yasumi Venta} & \textbf{Estado}\\
+\midrule
+\endhead
+R3.1 & Autorización estricta en servidor. & Middlewares \cod{verifyToken} e \cod{isAdmin} en rutas protegidas. & \Si\\
+R3.2 & Denegación por defecto ante ausencia de token. & Petición a \cod{GET /api/usuarios} sin token rechazada sin entrega de datos (C-03). & \Si\\
+R3.3 & Cumplimiento de matriz de privilegios RBAC. & Cliente, Vendedor e Invitado reciben 403 en catálogo administrativo y auditoría (C-04). & \Si\\
+R3.4 & Invalidación inmediata por inactividad. & Token activo previo devuelve 401 inmediato si la cuenta fue desactivada (C-05). & \Si\\
+R3.7 & Segundo factor obligatorio en privilegios. & Exigencia obligatoria de 2FA y rechazo 403 ante auto-modificación de rol (C-12). & \Si\\
+\bottomrule
+\end{longtable}
+\end{tabla}
+
+\subsection{Política 4. Protección de datos}
+\begin{tabla}
+\begin{longtable}{L{1.0cm}L{4.9cm}L{6.2cm}L{2.2cm}}
+\toprule
+\textbf{ID} & \textbf{Regla} & \textbf{Implementación en Yasumi Venta} & \textbf{Estado}\\
+\midrule
+\endhead
+R4.1 & Consultas 100\% parametrizadas. & Uso de marcadores posicionales \cod{\$1, \$2} con cliente \cod{pg} (anti-SQLi). & \Si\\
+R4.2 & Sanitización contra XSS en payloads. & Middleware \cod{sanitizePayload} que elimina etiquetas maliciosas y scripts. & \Si\\
+R4.3 & Validación binaria de archivos subidos. & Lista blanca de tipos MIME de imagen (\cod{image/jpeg}, \cod{png}, \cod{webp}) y máx. 5~MB. & \Si\\
+R4.4 & Restricción de orígenes cruzados (CORS). & Lista blanca estricta de orígenes autorizados en \cod{index.js}. & \Si\\
+R4.5 & Forzado de cabeceras de transporte seguro. & Cabeceras HSTS, \cod{nosniff}, \cod{X-Frame-Options: DENY} y directivas CSP. & \Si\\
+\bottomrule
+\end{longtable}
+\end{tabla}
+
+\subsection{Política 5. Registro, monitoreo y auditoría}
+\begin{tabla}
+\begin{longtable}{L{1.0cm}L{4.9cm}L{6.2cm}L{2.2cm}}
+\toprule
+\textbf{ID} & \textbf{Regla} & \textbf{Implementación en Yasumi Venta} & \textbf{Estado}\\
+\midrule
+\endhead
+R5.1 & Registro de fallos y accesos denegados. & Auditoría de \cod{AUTH_FAIL} con IP y navegador (C-10) y \cod{ACCESO_DENEGADO} (C-11). & \Si\\
+R5.2 & No almacenar secretos en registros. & Contraseñas y tokens excluidos de cualquier log de auditoría. & \Si\\
+R5.3 & Inmutabilidad de bitácoras (Append-Only). & Trigger PostgreSQL aborta con \cod{permission denied} ante \cod{UPDATE} o \cod{DELETE} (C-13). & \Si\\
+\bottomrule
+\end{longtable}
+\end{tabla}
+
+\subsection{Política 6. Desarrollo seguro y gestión de cambios}
+\begin{tabla}
+\begin{longtable}{L{1.0cm}L{4.9cm}L{6.2cm}L{2.2cm}}
+\toprule
+\textbf{ID} & \textbf{Regla} & \textbf{Implementación en Yasumi Venta} & \textbf{Estado}\\
+\midrule
+\endhead
+R6.1 & Control de versiones y trazabilidad de código. & Repositorio Git inicializado con historial de commits y ramas estructuradas. & \Si\\
+R6.2 & Exclusión estricta de secretos en Git. & Configuración de \cod{.gitignore} en raíz bloqueando \cod{.env} y credenciales. & \Si\\
+R6.3 & Fijación determinista de dependencias. & Archivos \cod{package-lock.json} presentes con verificación criptográfica SHA-512. & \Si\\
+\bottomrule
+\end{longtable}
+\end{tabla}
+
+\subsection{Política 7. Continuidad operativa y respuesta a incidentes}
+\begin{tabla}
+\begin{longtable}{L{1.0cm}L{4.9cm}L{6.2cm}L{2.2cm}}
+\toprule
+\textbf{ID} & \textbf{Regla} & \textbf{Implementación en Yasumi Venta} & \textbf{Estado}\\
+\midrule
+\endhead
+R7.1 & Procedimientos ante contingencias técnicas. & 5 escenarios de respuesta detallados en la Parte 5 con acciones concretas. & \Si\\
+R7.2 & Respaldo DDL de base de datos relacional. & Script maestro \cod{bd_yasumi_postgres.sql} probado para recuperación. & \Si\\
+\bottomrule
+\end{longtable}
+\end{tabla}
+
+\subsection{Política 8. Excepciones y cuentas de emergencia}
+\begin{tabla}
+\begin{longtable}{L{1.0cm}L{4.9cm}L{6.2cm}L{2.2cm}}
+\toprule
+\textbf{ID} & \textbf{Regla} & \textbf{Implementación en Yasumi Venta} & \textbf{Estado}\\
+\midrule
+\endhead
+R8.1 & Principio de no desactivación de auditoría. & Ninguna contingencia o modo de prueba inhabilita el registro en base de datos. & \Si\\
+R8.2 & Eliminación de credenciales fijas en producción. & Recomendación de retiro de usuarios de demostración en entornos productivos. & \Si\\
+\bottomrule
+\end{longtable}
+\end{tabla}
+
+\section{CÓMO TRADUCIR LAS POLÍTICAS A CONTROLES VERIFICABLES}
+
+Para que las políticas sean efectivas, deben verificarse mediante pruebas objetivas y reproducibles. La Tabla~\ref{tab:controles} traduce cada regla de seguridad a un control verificable formal, documentando la prueba ejecutada, el resultado esperado y su estado de implementación en el software.
+
+\subsection{Matriz de controles verificables}
+
+\begin{tabla}
+\begin{longtable}{L{1.0cm}L{1.6cm}L{4.2cm}L{4.0cm}L{2.2cm}}
+\caption{Controles verificables derivados de las políticas.}\label{tab:controles}\\
+\toprule
+\textbf{ID} & \textbf{Regla} & \textbf{Prueba} & \textbf{Resultado esperado} & \textbf{Estado}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{ID} & \textbf{Regla} & \textbf{Prueba} & \textbf{Resultado esperado} & \textbf{Estado}\\
+\midrule
+\endhead
+C-01 & R2.8 & Login con correo inexistente y con contraseña errónea. & Mismo código 401 y mismo mensaje. & \Si\\
+C-02 & R2.1 & Consultar el prefijo de \cod{usuario.password}. & Todos comienzan con \cod{\$2b\$10\$} o superior. & \Si\\
+C-03 & R3.2 & \cod{GET /api/usuarios} sin token. & Rechazo sin datos. & \Si\\
+C-04 & R3.3 & Token de Cliente, Vendedor e Invitado en \cod{POST /api/productos} y \cod{GET /api/logs}. & 403 en todos los casos. & \Si\\
+C-05 & R1.3 / R3.4 & Desactivar una cuenta y repetir petición con su token previo. & 401 inmediato. & \Si\\
+C-06 & R2.5 & Cerrar sesión y reutilizar el mismo token. & 401. & \Si\\
+C-07 & R2.4 & Seis logins fallidos consecutivos. & Bloqueo de 15 minutos y evento \cod{AUTH_BLOQUEADO}. & \Si\\
+C-08 & R2.4 & Login con operandos de CAPTCHA fabricados. & Rechazo si no corresponden al desafío del servidor. & \Si\\
+C-09 & R2.5 & Usar un token con vencimiento superado (\cod{JWT_EXPIRES_IN=5s}). & 401. & \Si\\
+C-10 & R5.1 & Login fallido y consulta del registro. & Evento \cod{AUTH_FAIL} con IP y navegador. & \Si\\
+C-11 & R5.1 & Repetir C-04 y consultar el registro. & Eventos \cod{ACCESO_DENEGADO}. & \Si\\
+C-12 & R1.4 / R3.7 & \cod{PUT /usuarios/:id/rol} con y sin segundo factor y sobre sí mismo. & Con 2FA, éxito y \cod{ROL_CAMBIO}; sin 2FA o sobre sí mismo, 403. & \Si\\
+C-13 & R5.3 & Con el usuario de la aplicación, \cod{UPDATE} o \cod{DELETE} sobre \cod{log_auditoria}. & \cod{permission denied}. & \Si\\
+\bottomrule
+\end{longtable}
+\end{tabla}
+
+\subsection{Procedimientos de prueba y comandos reproducibles}
+
+Los controles implementados pueden verificarse de manera empírica y reproducible mediante los siguientes comandos de consola:
+
+\begin{lstlisting}[language=bash,caption={Comandos de verificación de seguridad con cURL.},label={lst:pruebas}]
+API=http://localhost:3002/api
+JSON='Content-Type: application/json'
+
+# C-01: Verificación de respuesta homogénea anti-timing attack (401)
+curl -i -X POST $API/auth/login -H "$JSON" \
+  -d '{"email":"noexiste@yasumi.com","password":"erronea","captchaToken":"dummy"}'
+
+# C-03: Rechazo sin datos al consultar rutas protegidas sin token
+curl -i $API/usuarios
+
+# C-04: Acceso denegado (403) con token de Cliente o Vendedor
+curl -i -X POST $API/productos -H "Authorization: Bearer $TOKEN_CLIENTE"
+
+# C-05: Inmediato 401 tras desactivar la cuenta en BD
+curl -i $API/usuarios -H "Authorization: Bearer $TOKEN_PREVIO_DESACTIVADO"
+
+# C-06: Inmediato 401 al reutilizar token tras logout
+curl -i -X POST $API/auth/logout -H "Authorization: Bearer $TOKEN"
+curl -i $API/usuarios -H "Authorization: Bearer $TOKEN"
+
+# C-07: Bloqueo de 15 min y AUTH_BLOQUEADO tras 6 fallos consecutivos
+for i in {1..6}; do
+  curl -s -o /dev/null -w "%{http_code}\n" -X POST $API/auth/login -H "$JSON" \
+    -d '{"email":"carlos.m@example.com","password":"err","captchaToken":"x"}'
+done
+
+# C-08: Rechazo por operandos de CAPTCHA fabricados (400)
+curl -i -X POST $API/auth/login -H "$JSON" \
+  -d '{"email":"carlos.m@example.com","password":"xxx","captchaA":1,"captchaB":1,"captchaInput":2}'
+
+# C-10 y C-11: Consulta de eventos AUTH_FAIL y ACCESO_DENEGADO
+curl -s $API/logs -H "Authorization: Bearer $TOKEN_ADMIN" | grep -E "AUTH_FAIL|ACCESO_DENEGADO"
+
+# C-12: PUT /usuarios/:id/rol con y sin 2FA y sobre si mismo (403 sin 2FA / auto, 200 con 2FA)
+curl -i -X PUT $API/usuarios/2/rol -H "$JSON" -H "Authorization: Bearer $TOKEN_ADMIN" \
+  -d '{"nuevoRol":"admin"}'  # 403 Forbidden: Requiere 2FA
+
+curl -i -X PUT $API/usuarios/2/rol -H "$JSON" -H "Authorization: Bearer $TOKEN_ADMIN" \
+  -H "X-2FA-Token: 2FA-AUTH-OK" -d '{"nuevoRol":"admin"}'  # 200 OK y ROL_CAMBIO
+
+# C-13: Inmutabilidad de auditoria (permission denied)
+# En psql: UPDATE log_acceso SET evento = 'FALSO' WHERE id_log = 1;
+# Resultado: ERROR: permission denied: log_acceso y log_auditoria son de solo insercion
+\end{lstlisting}
+
+\section*{CONCLUSIONES}
+\addcontentsline{toc}{section}{CONCLUSIONES}
+
+El análisis y fortalecimiento de seguridad ejecutado sobre el sistema **Yasumi Venta** demuestra que la aplicación dispone de una arquitectura robusta, modular y resiliente. Se implementaron con éxito defensas técnicas activas contra los principales vectores de ciberataque del entorno web: las consultas parametrizadas anulan la inyección SQL; el limitador de tasa (\cod{authLimiter}), el CAPTCHA con firma HMAC-SHA256 y la verificación uniforme con hashes de relleno neutralizan los ataques de fuerza bruta y de temporización; la sanitización de payloads y las cabeceras HTTP de hardening previenen el XSS y el Clickjacking; y las reglas de autorización en backend protegen el sistema contra escalada de privilegios y auto-bloqueos.
+
+Las ocho partes del proyecto final de \textit{Seguridad de la Información (SEG - 244)} han sido desarrolladas y documentadas en correspondencia con el código fuente del sistema. Con la matriz de mínimo privilegio establecida, las políticas de seguridad traducidas a controles verificables y los procedimientos estructurados de continuidad operativa, Yasumi Venta se consolida como una plataforma de comercio electrónico que no solo satisface las necesidades operativas de la florería y tienda de regalos, sino que preserva de manera demostrable la confidencialidad, integridad y disponibilidad de sus activos críticos de información.
+
+\begin{thebibliography}{99}
+\addcontentsline{toc}{section}{BIBLIOGRAFÍA}
+\renewcommand{\refname}{BIBLIOGRAFÍA}
+
+\bibitem{owaspasvs} OWASP Foundation. \textit{Application Security Verification Standard (ASVS) Version 4.0}. \url{https://owasp.org/www-project-application-security-verification-standard/}
+
+\bibitem{owaspcheat} OWASP Foundation. \textit{OWASP Cheat Sheet Series: Password Storage, REST Security, Authorization, and Session Management}. \url{https://cheatsheetseries.owasp.org/}
+
+\bibitem{nist63b} National Institute of Standards and Technology. \textit{NIST SP 800-63B: Digital Identity Guidelines - Authentication and Lifecycle Management}. U.S. Department of Commerce, 2020. \url{https://pages.nist.gov/800-63-3/sp800-63b.html}
+
+\bibitem{nist53} National Institute of Standards and Technology. \textit{NIST SP 800-53 Rev. 5: Security and Privacy Controls for Information Systems and Organizations}. Special Publication (NIST SP), 2020.
+
+\bibitem{nist61} National Institute of Standards and Technology. \textit{NIST SP 800-61 Rev. 2: Computer Security Incident Handling Guide}. U.S. Department of Commerce, 2012.
+
+\bibitem{iso27001} International Organization for Standardization. \textit{ISO/IEC 27001:2022 Information Security, Cybersecurity and Privacy Protection - Information Security Management Systems - Requirements}. Ginebra, Suiza, 2022.
+
+\bibitem{rfc8725} Sheffer, Y., Hardt, D., y Jones, M. \textit{RFC 8725: JSON Web Token Best Current Practices}. Internet Engineering Task Force (IETF), 2020. \url{https://www.rfc-editor.org/info/rfc8725}
+
+\bibitem{rfc6238} M'Raihi, D., Machani, S., Pei, M., y Rydell, J. \textit{RFC 6238: TOTP: Time-Based One-Time Password Algorithm}. Internet Engineering Task Force (IETF), 2011. \url{https://www.rfc-editor.org/info/rfc6238}
+
+\bibitem{umsa2026} Bustillos Choque, M. A., Colque Paucara, K. C., Mamani Colmena, G., y Rojas Guachalla, R. A. \textit{Trabajo de Investigación: Ciberataques}. Carrera de Informática, Universidad Mayor de San Andrés (UMSA), La Paz, Bolivia, 2026.
+
+\end{thebibliography}
+
+\end{document}

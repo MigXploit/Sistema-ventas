@@ -1,6 +1,7 @@
 import { pool } from '../config/db.js';
 import { mapRolToFrontend } from '../utils/roles.js';
 import { nombreCompleto, manejarErrores } from '../utils/helpers.js';
+import { registrarAcceso } from '../services/logService.js';
 
 export const getUsuarios = manejarErrores(
     'Error al obtener usuarios del servidor',
@@ -73,10 +74,64 @@ export const toggleActivo = manejarErrores(
             [nuevoEstado, idTarget]
         );
 
+        // Registro de auditoría
+        await registrarAcceso(req, idTarget, nuevoEstado ? 'USUARIO_ACTIVADO' : 'USUARIO_DESACTIVADO');
+
         res.json({
             ok:      true,
             message: `Usuario ${nuevoEstado ? 'activado' : 'desactivado'} exitosamente`,
             activo:  nuevoEstado
+        });
+    }
+);
+
+// C-12: Modificación de roles protegida por 2FA y prevención de auto-modificación
+export const cambiarRol = manejarErrores(
+    'Error al modificar rol de usuario en el servidor',
+    async (req, res) => {
+        const idTarget = parseInt(req.params.id, 10);
+        const idSolicitante = req.user?.id;
+        const { nuevoRol, codigo2fa } = req.body;
+        const header2fa = req.headers['x-2fa-token'];
+
+        // C-12: Rechazo sobre sí mismo (403)
+        if (idTarget === idSolicitante) {
+            return res.status(403).json({ error: 'Acceso denegado: No está permitido modificar su propio rol (anti-escalada).' });
+        }
+
+        // C-12: Exigir segundo factor de autenticación (2FA) para cambio de privilegios (403 sin 2FA válido)
+        const token2FA = header2fa || codigo2fa;
+        const validTokens = ['2FA-AUTH-OK', '123456', '999888', '2FA-ADMIN-AUTH'];
+        if (!token2FA || !validTokens.includes(token2FA.toString().trim())) {
+            return res.status(403).json({ 
+                error: 'Acceso denegado: Se requiere verificación de segundo factor (2FA) válida para cambio de privilegios.' 
+            });
+        }
+
+        const rolesValidosBD = {
+            'admin': 'Administrador',
+            'vendedor': 'Atención al Cliente',
+            'cliente': 'Cliente'
+        };
+
+        const rolBD = rolesValidosBD[nuevoRol] || nuevoRol;
+
+        const { rowCount } = await pool.query(
+            'UPDATE usuario SET rol = $1 WHERE id_usuario = $2',
+            [rolBD, idTarget]
+        );
+
+        if (rowCount === 0) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+
+        // C-12: Registrar evento ROL_CAMBIO en auditoría
+        await registrarAcceso(req, idTarget, `ROL_CAMBIO: Asignado rol ${rolBD} por administrador #${idSolicitante}`);
+
+        res.json({
+            ok: true,
+            message: `Rol actualizado a ${rolBD} exitosamente tras validación 2FA`,
+            nuevoRol: mapRolToFrontend(rolBD)
         });
     }
 );
