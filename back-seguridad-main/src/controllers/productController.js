@@ -1,8 +1,11 @@
 import { pool } from '../config/db.js';
 import fs from 'fs';
 import path from 'path';
+import jwt from 'jsonwebtoken';
+import { JWT_SECRET } from '../config/jwt.js';
 import { cleanCategoryName, getFrontendPublicDir, ensureDir } from '../utils/files.js';
 import { cifrarBidireccionalASCII, descifrarBidireccionalASCII } from '../utils/cryptoAssets.js';
+import { registrarAcceso } from '../services/logService.js';
 
 // MIME types seguros permitidos
 const ALLOWED_MIME_TYPES = {
@@ -82,7 +85,7 @@ const resolverImagen = async ({ imagen_url, emoji, imagen_base64, imagen_nombre,
     return emoji || '🌸';
 };
 
-// Cifrado bidireccional basado en ASCII (+5) para los datos visibles (título y descripción) al guardar en BD
+// Cifrado polialfabético bidireccional de Vigenère sobre alfabeto ASCII (32–126) para los datos visibles (título y descripción) al guardar en BD
 const valoresProducto = async (body) => [
     body.nombre ? cifrarBidireccionalASCII(body.nombre.trim()) : '',
     body.descripcion ? cifrarBidireccionalASCII(body.descripcion.trim()) : null,
@@ -94,15 +97,29 @@ const valoresProducto = async (body) => [
     parseInt(body.stock_minimo ?? 1, 10)
 ];
 
-// Obtener todos los productos (Descifra en el backend los datos visibles con desplazamiento ASCII -5)
+const esPeticionAdmin = (req) => {
+    const authHeader = req.headers?.['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    if (!token) return false;
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        return decoded?.rol === 'admin' || decoded?.rol === 'Administrador';
+    } catch {
+        return false;
+    }
+};
+
+// Obtener productos (Descifra en el backend los datos visibles con Cifrado de Vigenère sobre alfabeto ASCII; filtra solo activos para no administradores)
 export const getProductos = async (req, res) => {
     try {
+        const esAdmin = esPeticionAdmin(req);
         const { rows } = await pool.query(
             `SELECT p.id_producto AS id, p.nombre, p.descripcion, p.tipo, p.imagen_url,
                     p.activo, p.precio, p.stock_disponible AS stock, p.stock_minimo,
                     p.id_categoria, c.nombre AS categoria
              FROM producto p
              JOIN categoria c ON p.id_categoria = c.id_categoria
+             ${esAdmin ? '' : 'WHERE p.activo = TRUE'}
              ORDER BY p.id_producto DESC`
         );
 
@@ -118,7 +135,7 @@ export const getProductos = async (req, res) => {
                 id_categoria:         p.id_categoria,
                 precio:               Number(p.precio),
                 stock:                p.stock,
-                stock_minimo:         p.stock_minimo,
+                ...(esAdmin ? { stock_minimo: p.stock_minimo } : {}),
                 descripcion:          descripcionDescifrada,
                 tipo:                 p.tipo,
                 imagen_url:           p.imagen_url,
@@ -146,10 +163,15 @@ export const crearProducto = async (req, res) => {
             valores
         );
 
+        const nuevoId = rows[0].id_producto;
+        try {
+            await registrarAcceso(req, req.user?.id || null, `PRODUCTO_CREADO: ID #${nuevoId} (${req.body?.nombre || 'Producto'})`);
+        } catch { /* no interrumpir respuesta */ }
+
         res.json({
             ok: true,
             message: 'Producto creado exitosamente',
-            id: rows[0].id_producto
+            id: nuevoId
         });
     } catch (error) {
         console.error('Error al crear producto:', error.message);
@@ -169,6 +191,11 @@ export const editarProducto = async (req, res) => {
              WHERE id_producto = $9`,
             [...valores, req.params.id]
         );
+
+        try {
+            await registrarAcceso(req, req.user?.id || null, `PRODUCTO_EDITADO: ID #${req.params.id}`);
+        } catch { /* no interrumpir respuesta */ }
+
         res.json({ ok: true, message: 'Producto actualizado exitosamente' });
     } catch (error) {
         console.error('Error al editar producto:', error.message);
@@ -184,6 +211,15 @@ const setProductoActivo = (activo) => async (req, res) => {
             'UPDATE producto SET activo = $1 WHERE id_producto = $2',
             [activo, req.params.id]
         );
+
+        try {
+            await registrarAcceso(
+                req,
+                req.user?.id || null,
+                `${activo ? 'PRODUCTO_REACTIVADO' : 'PRODUCTO_DESACTIVADO'}: ID #${req.params.id}`
+            );
+        } catch { /* no interrumpir respuesta */ }
+
         res.json({ ok: true, message: `Producto ${activo ? 'reactivado' : 'desactivado'} exitosamente` });
     } catch (error) {
         console.error(`Error al ${accion} producto:`, error);

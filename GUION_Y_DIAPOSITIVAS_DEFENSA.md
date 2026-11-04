@@ -24,10 +24,10 @@
 - **Contenido visual:**
   - **“YASUMIVENTAS”** — **Grupo: Detalles**
   - **Estudiantes:**
-    1. Bustillos Choque Miguel Angel
-    2. Colque Paucara Klever Calet
-    3. Mamani Colmena Gerson (Representante)
-    4. Rojas Guachalla Ranulfo Antonio
+    1. Bustillos Choque Miguel Angel (C.I.: 13760600)
+    2. Colque Paucara Klever Calet (C.I.: 14414631)
+    3. Mamani Colmena Gerson (Representante — C.I.: 12958104)
+    4. Rojas Guachalla Ranulfo Antonio (C.I.: 11076290)
   - Docente: Ph.D. Luisa Velásquez López.
 - **🎙️ Qué decir en la defensa:**
   > *"Buenos días/tardes Ph.D. Luisa Velásquez López. Hoy presentamos y defendemos el Proyecto Final de Seguridad de la Información aplicado al sistema funcional **Yasumi Venta**. A lo largo de esta exposición demostraremos cómo aseguramos de extremo a extremo la infraestructura del sistema, cubriendo desde la demostración de criticidad y el ciclo de vida de las identidades hasta la autorización contextual, la auditoría inmutable, las políticas de seguridad y la verificación práctica de controles."*
@@ -209,6 +209,6 @@
   1. **Login (`/login`):** Mostrar CAPTCHA firmado (`Anti-Bot Activo`) e ingresar como **Invitado** (token efímero de 2h).
   2. **Catálogo (`/catalogo`):** Mostrar las animaciones, filtros e intento bloqueado de compra para invitado.
   3. **Dashboard (`/dashboard`):** Entrar como **Administrador** y usar las tarjetas de **Navegación Rápida**.
-  4. **Usuarios (`/usuarios`):** Abrir el modal **`🔑 Rol (2FA)`**, escribir un motivo de auditoría, autocompletar el token `2FA-AUTH-OK` y confirmar el cambio de rol (**C-12**).
+  4. **Usuarios (`/usuarios`):** Abrir el modal **`🔑 Rol (2FA)`**, escribir un motivo de auditoría, generar el código TOTP dinámico de 6 dígitos (RFC 6238 / 30s) y confirmar el cambio de rol (**C-12**).
   5. **Reportes y Auditoría (`/reportes`):** Filtrar la bitácora por **"Roles e Identidades"** o **"Supervisión"**, ver en vivo los eventos `ROL_CAMBIO` y `SUPERVISION_ROL_CARGO`, y descargar el **PDF de Bitácora Forense**.
 

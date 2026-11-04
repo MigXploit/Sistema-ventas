@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useProductos } from '../context/ProductosContext';
 import { useNavigate } from 'react-router-dom';
@@ -12,11 +13,15 @@ const CATEGORIAS_DESTACADAS = [
 
 export default function Dashboard() {
   const { usuario } = useAuth();
-  const { estadisticas, getProductosActivos, loading } = useProductos();
+  const { estadisticas, getProductosActivos, loading, cargarDatos } = useProductos();
   const navigate = useNavigate();
   const stats = estadisticas();
   const productos = getProductosActivos().slice(0, 4);
   const esAdmin = usuario?.rol === 'admin';
+
+  useEffect(() => {
+    cargarDatos?.();
+  }, [usuario?.rol]);
 
   const accesosRapidos = [
     {

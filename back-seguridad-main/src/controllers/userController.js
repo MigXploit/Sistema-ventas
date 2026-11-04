@@ -2,7 +2,21 @@ import { pool } from '../config/db.js';
 import { mapRolToFrontend } from '../utils/roles.js';
 import { nombreCompleto, manejarErrores } from '../utils/helpers.js';
 import { registrarAcceso } from '../services/logService.js';
-import { verificarCodigo2FA } from '../utils/totp.js';
+import { generarTOTP, verificarCodigo2FA } from '../utils/totp.js';
+
+export const obtenerCodigoTotpDemo = manejarErrores(
+    'Error al generar código TOTP en el servidor',
+    async (req, res) => {
+        const codigoTotp = generarTOTP();
+        const vigenciaSegundos = 30 - (Math.floor(Date.now() / 1000) % 30);
+        res.json({
+            ok: true,
+            codigoTotp,
+            vigenciaSegundos,
+            algoritmo: 'TOTP (RFC 6238 / HMAC-SHA1 - 6 dígitos / 30s)'
+        });
+    }
+);
 
 export const getUsuarios = manejarErrores(
     'Error al obtener usuarios del servidor',

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProductos } from '../context/ProductosContext';
 import { SearchIcon, FlowerIcon } from '../components/Icons';
@@ -6,12 +6,16 @@ import ProductoModal from '../components/ProductoModal';
 
 export default function Productos() {
   const navigate = useNavigate();
-  const { getTodos, categorias, eliminarProducto, reactivarProducto, loading } = useProductos();
+  const { getTodos, categorias, eliminarProducto, reactivarProducto, loading, cargarDatos } = useProductos();
   const [busqueda, setBusqueda] = useState('');
   const [filtroCategoria, setFiltroCategoria] = useState('Todos');
   const [filtroEstado, setFiltroEstado] = useState('activos');
   const [modalAbierto, setModalAbierto] = useState(false);
   const [productoEditar, setProductoEditar] = useState(null);
+
+  useEffect(() => {
+    cargarDatos?.();
+  }, []);
 
   const todos = getTodos();
   const filtrados = todos.filter((p) => {

@@ -55,3 +55,4 @@ export const verificarCodigo2FA = (codigoIngresado) => {
 
     return false;
 };
+

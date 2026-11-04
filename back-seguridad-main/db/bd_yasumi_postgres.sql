@@ -259,9 +259,9 @@ INSERT INTO detalle_reserva (id_reserva, id_producto, cantidad, personalizacion,
 -- --------------------------------------------------------
 CREATE TABLE log_acceso (
     id_log     SERIAL PRIMARY KEY,
-    id_usuario INTEGER NOT NULL REFERENCES usuario(id_usuario) ON DELETE CASCADE,
+    id_usuario INTEGER REFERENCES usuario(id_usuario) ON DELETE CASCADE,
     ip_address VARCHAR(45),
-    evento     VARCHAR(100),
+    evento     VARCHAR(255),
     browser    VARCHAR(255),
     fecha_hora TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -338,7 +338,18 @@ ALTER TABLE usuario
     ADD COLUMN IF NOT EXISTS estado_cambiado_en TIMESTAMPTZ,
     ADD COLUMN IF NOT EXISTS token_version      INTEGER NOT NULL DEFAULT 0;
 
-CREATE OR REPLACE VIEW log_auditoria AS SELECT * FROM log_acceso;
+ALTER TABLE log_acceso ALTER COLUMN id_usuario DROP NOT NULL;
+
+CREATE OR REPLACE VIEW log_auditoria AS
+SELECT id_log,
+       id_log AS id_evento,
+       fecha_hora,
+       evento,
+       id_usuario,
+       ip_address,
+       browser,
+       browser AS user_agent
+  FROM log_acceso;
 
 CREATE OR REPLACE FUNCTION prevenir_modificacion_logs()
 RETURNS TRIGGER AS $$

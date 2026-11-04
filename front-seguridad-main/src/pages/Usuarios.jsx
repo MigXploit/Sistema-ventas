@@ -431,11 +431,20 @@ export default function Usuarios() {
             <div className="form-group" style={{ background: '#F8FAFC', padding: '12px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                 <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
-                  <span>🔒 Token de Segundo Factor (2FA) *</span>
+                  <span>🔒 Código TOTP de Segundo Factor (2FA — RFC 6238) *</span>
                 </label>
                 <button
                   type="button"
-                  onClick={() => setCodigo2fa('2FA-AUTH-OK')}
+                  onClick={async () => {
+                    try {
+                      const res = await api.get('/usuarios/2fa-totp');
+                      if (res.data?.codigoTotp) {
+                        setCodigo2fa(res.data.codigoTotp);
+                      }
+                    } catch {
+                      setErrorRol('No se pudo obtener el código TOTP del autenticador.');
+                    }
+                  }}
                   style={{
                     background: 'var(--rosa-palido)',
                     color: 'var(--rosa-profundo)',
@@ -447,18 +456,18 @@ export default function Usuarios() {
                     cursor: 'pointer'
                   }}
                 >
-                  Autocompletar Demo (2FA-AUTH-OK)
+                  Generar Código TOTP (6 dígitos / 30s)
                 </button>
               </div>
               <input
                 type="text"
                 className="form-control"
-                placeholder="Ingrese token 2FA (ej. 123456 o 2FA-AUTH-OK)"
+                placeholder="Ingrese código TOTP de 6 dígitos (RFC 6238)"
                 value={codigo2fa}
                 onChange={(e) => setCodigo2fa(e.target.value)}
               />
               <div style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '6px' }}>
-                <em>Control C-12:</em> Operación de alto riesgo. Requiere 2FA mandatorio y deja rastro en <code>ROL_CAMBIO</code>. Sin token o al modificar su propio rol, la solicitud es rechazada (HTTP 403).
+                <em>Control C-12:</em> Operación de alto riesgo protegida con TOTP dinámico de 6 dígitos (ventana de 30s, HMAC-SHA1) y trazabilidad en <code>ROL_CAMBIO</code>. Sin 2FA válido o sobre sí mismo devuelve HTTP 403.
               </div>
             </div>
 

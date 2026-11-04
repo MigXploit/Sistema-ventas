@@ -1,7 +1,7 @@
 # 🛡️ Informe de Ciberseguridad Integral: Análisis de Amenazas, Resistencia a Ciberataques y Plan de Mitigación
 > **Caso de Aplicación:** *Sistema de Ventas, Catálogo e Inventario — Yasumi (Florería & Regalos)*  
 > **Marco Teórico de Referencia:** Trabajo de Investigación sobre Ciberataques — Asignatura *Seguridad de la Información (SEG - 244)*, Carrera de Informática, Universidad Mayor de San Andrés (UMSA)  
-> **Autores de la Investigación Base:** Bustillos Choque M. A., Colque Paucara K. C., Mamani Colmena G., Rojas Guachalla R. A.  
+> **Autores de la Investigación Base:** Bustillos Choque Miguel Angel (C.I.: 13760600), Colque Paucara Klever Calet (C.I.: 14414631), Mamani Colmena Gerson (C.I.: 12958104), Rojas Guachalla Ranulfo Antonio (C.I.: 11076290).  
 > **Ubicación del Documento:** Raíz del Workspace (`sistema de ventas/INFORME_CIBERSEGURIDAD_Y_RESISTENCIA_ATAQUES.md`)  
 > **Fecha:** Octubre 2026  
 > **Estado:** Implementación de Defensas en Código Fuente y Evaluación Forense  

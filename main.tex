@@ -33,20 +33,24 @@
 \usepackage{needspace}
 \usepackage{tocloft}
 
-% --- Titulos de seccion: A-F y luego Partes 1-8 ---
+% --- Titulos de seccion: A-F y luego PARTES 1-8 (MAYUSCULA Y NEGRITA) ---
 \titleformat{\section}{\bfseries\normalsize}{\thesection.}{0.6em}{}
 \titleformat{\subsection}[hang]{\bfseries\normalsize}{\thesubsection}{0.6em}{}[]
 \titleformat{\subsection}{\needspace{6\baselineskip}\bfseries\normalsize}{\thesubsection}{0.6em}{}
-\titleformat{\subsubsection}{\bfseries\itshape\normalsize}{}{0em}{}
+\titleformat{\subsubsection}{\bfseries\normalsize}{}{0em}{}
 \titlespacing*{\section}{0pt}{16pt}{6pt}
 \titlespacing*{\subsection}{0pt}{12pt}{4pt}
 \titlespacing*{\subsubsection}{0pt}{8pt}{2pt}
 \renewcommand{\thesection}{\Alph{section}}
 \renewcommand{\thesubsection}{\Alph{section}.\arabic{subsection}}
-\setlength{\cftsecnumwidth}{4.6em}
-\setlength{\cftsubsecindent}{4.6em}
+\setlength{\cftsecnumwidth}{5.2em}
+\setlength{\cftsubsecindent}{5.2em}
 \setlength{\cftsubsecnumwidth}{3em}
 \setcounter{tocdepth}{2}
+\renewcommand{\cftsecfont}{\bfseries}
+\renewcommand{\cftsubsecfont}{\bfseries}
+\renewcommand{\cftsecpagefont}{\bfseries}
+\renewcommand{\cftsubsecpagefont}{\bfseries}
 \renewcommand{\cfttoctitlefont}{\hfill\bfseries\normalsize}
 \renewcommand{\cftaftertoctitle}{\hfill}
 
@@ -98,11 +102,15 @@
 \vspace{2.8cm}
 \noindent{\Large\bfseries Estudiantes:}\par
 \vspace{0.4cm}
-\begin{enumerate}[leftmargin=0.8cm,itemsep=6pt]
-    \item Bustillos Choque Miguel Angel
-    \item Colque Paucara Klever Calet
-    \item Mamani Colmena Gerson (Representante)
-    \item Rojas Guachalla Ranulfo Antonio
+\begin{enumerate}[leftmargin=0.8cm,itemsep=8pt]
+    \item Bustillos Choque Miguel Angel \\
+          \textbf{C.I.:} 13760600
+    \item Colque Paucara Klever Calet \\
+          \textbf{C.I.:} 14414631
+    \item Mamani Colmena Gerson (Representante) \\
+          \textbf{C.I.:} 12958104
+    \item Rojas Guachalla Ranulfo Antonio \\
+          \textbf{C.I.:} 11076290
 \end{enumerate}
 \vfill
 \end{titlepage}
@@ -148,11 +156,11 @@ Diseñar e implementar una arquitectura integral de seguridad de la información
 
 \section{DESARROLLO}
 
-\subsection{Alcance y metodología}
+\subsection{ALCANCE Y METODOLOGÍA}
 
 El alcance comprende el backend (\cod{back-seguridad-main}), el frontend (\cod{front-seguridad-main}) y el esquema de base de datos \cod{bd_yasumi}. La metodología se ejecutó en cuatro fases: (1) diagnóstico inicial del código fuente para identificar controles base y brechas de seguridad; (2) análisis de activos y amenazas para demostrar la criticidad de la infraestructura; (3) diseño e implementación de las remediaciones técnicas sobre el backend, el frontend y la base de datos; y (4) traducción de las ocho políticas de seguridad en controles verificables mediante pruebas reproducibles. Como marco normativo se emplearon las guías de OWASP (ASVS y Cheat Sheet Series), las publicaciones de NIST (SP 800-63B, SP 800-53 Rev. 5, SP 800-92 y SP 800-61 Rev. 2), la norma ISO/IEC 27001 y la metodología de políticas de Pirani Risk \cite{owaspasvs,owaspcheat,nist63b,nist53,nist92,nist61,iso27001,pirani}.
 
-\subsection{Arquitectura del sistema}
+\subsection{ARQUITECTURA DEL SISTEMA}
 
 La Figura~\ref{fig:arq} muestra los componentes y las fronteras de confianza. Todo lo que ocurre en el navegador se considera no confiable: las protecciones del frontend (rutas privadas y menús por rol) mejoran la experiencia de uso, pero la seguridad real se aplica en la API, que es el único punto que accede a la base de datos.
 
@@ -175,7 +183,7 @@ La Figura~\ref{fig:arq} muestra los componentes y las fronteras de confianza. To
 \label{fig:arq}
 \end{figure}
 
-\subsection{Modelo de datos relevante para la seguridad}
+\subsection{MODELO DE DATOS RELEVANTE PARA LA SEGURIDAD}
 
 \begin{tabla}
 \begin{longtable}{L{3.2cm}L{4.6cm}L{6.9cm}}
@@ -198,7 +206,7 @@ La Figura~\ref{fig:arq} muestra los componentes y las fronteras de confianza. To
 \end{longtable}
 \end{tabla}
 
-\subsection{Superficie de ataque: puntos de entrada de la API}
+\subsection{SUPERFICIE DE ATAQUE: PUNTOS DE ENTRADA DE LA API}
 
 \begin{tabla}
 \begin{longtable}{L{4.6cm}L{1.6cm}L{3.9cm}L{4.4cm}}
@@ -243,7 +251,7 @@ Cualquier brecha de seguridad en este entorno no representa únicamente una fall
 
 En este contexto, la infraestructura del proyecto Yasumi Venta es inherentemente crítica. A continuación, se identifican y clasifican los activos de información fundamentales de este modelo de negocio, cuya protección justifica plenamente el diseño de controles de seguridad que se abordará en las siguientes secciones:
 \pagebreak
-\subsection{Inventario de activos y datos sensibles}
+\subsection{INVENTARIO DE ACTIVOS Y DATOS SENSIBLES}
 
 \begin{tabla}
 \begin{longtable}{L{3.3cm}L{3.9cm}L{2.4cm}L{4.5cm}}
@@ -263,7 +271,7 @@ Credenciales de la base de datos & Archivo \cod{.env} del servidor & Restringida
 \end{longtable}
 \end{tabla}
 
-\subsection{Impacto sobre confidencialidad, integridad y disponibilidad}
+\subsection{IMPACTO SOBRE CONFIDENCIALIDAD, INTEGRIDAD Y DISPONIBILIDAD}
 
 \textbf{Confidencialidad.} La base de datos reúne en un solo lugar las credenciales y los datos personales de todas las personas que usan el sistema. Una sola vulnerabilidad en la API puede exponer ambos conjuntos a la vez. Por ejemplo, el listado de usuarios que entrega \cod{/api/usuarios} incluye correo, rol, sucursal y fechas de acceso de todo el personal, por lo que el control de acceso a esa ruta es determinante.
 
@@ -271,7 +279,7 @@ Credenciales de la base de datos & Archivo \cod{.env} del servidor & Restringida
 
 \textbf{Disponibilidad.} Todo el negocio en línea depende de una única API y de una única base de datos. Si el servicio de identidad no responde, nadie puede iniciar sesión y el personal no puede registrar ventas. Por eso se requieren procedimientos de continuidad y recuperación (Parte~5).
 \pagebreak
-\subsection{Amenazas y riesgos principales}
+\subsection{AMENAZAS Y RIESGOS PRINCIPALES}
 
 \begin{tabla}
 \begin{longtable}{L{3.0cm}L{4.3cm}L{2.9cm}L{2.0cm}L{1.6cm}}
@@ -299,11 +307,11 @@ Falla o pérdida de datos & Caída de la base de datos, error humano o programa 
 \end{longtable}
 \end{tabla}
 
-\subsection{Escenario que demuestra el impacto}
+\subsection{ESCENARIO QUE DEMUESTRA EL IMPACTO}
 
 Si un atacante lograra obtener el token de un administrador en un sistema sin controles de revocación ni auditoría, con ese único valor podría: (1) listar los datos personales de todo el personal con \cod{GET /api/usuarios}; (2) desactivar cuentas legítimas con \cod{POST /api/usuarios/:id/toggle}, incluida la de otros administradores; (3) crear, modificar o desactivar productos; y (4) consultar los registros de acceso para conocer los hábitos del personal. En el diagnóstico inicial del prototipo, estas operaciones no dejaban rastro forense completo y el token no podía revocarse antes de su expiración. Este escenario demuestra que un solo punto de falla —la identidad del administrador— otorga control crítico sobre el negocio, lo que justifica tratar al servicio de identidad y auditoría como el núcleo de defensa de las partes siguientes.
 
-\subsection{Conclusión sobre la criticidad}
+\subsection{CONCLUSIÓN SOBRE LA CRITICIDAD}
 
 La infraestructura es crítica porque (a) concentra credenciales y datos personales, (b) el servicio de identidad es un punto único de falla para la operación, (c) las identidades privilegiadas permiten modificar datos con efecto financiero y (d) los registros de actividad son la única evidencia ante un incidente. Esta condición fundamental guía la arquitectura de seguridad implementada en las Partes 1 a 8.
 
@@ -311,19 +319,19 @@ La infraestructura es crítica porque (a) concentra credenciales y datos persona
 %  A PARTIR DE AQUI LAS SECCIONES SE NUMERAN COMO "PARTE N"
 % ============================================================
 \setcounter{section}{0}
-\renewcommand{\thesection}{Parte \arabic{section}}
+\renewcommand{\thesection}{PARTE \arabic{section}}
 \renewcommand{\thesubsection}{\arabic{section}.\arabic{subsection}}
 \titleformat{\section}{\bfseries\normalsize}{\thesection.}{0.5em}{}
 
 \section{IDENTIFICACIÓN Y CICLO DE VIDA DE LAS IDENTIDADES}
 
-\subsection{Modelo de identidad}
+\subsection{MODELO DE IDENTIDAD}
 
 Cada identidad se representa con registros enlazados por la misma clave: \cod{persona} (datos personales y correo único), \cod{usuario} (credenciales, rol y estado) y, cuando es cliente, \cod{cliente}. El identificador \cod{id_persona} se genera automáticamente y no se reutiliza, y el correo tiene una restricción \cod{UNIQUE} además de una verificación previa en el registro. La creación de los tres registros se ejecuta dentro de una transacción (\cod{withTransaction}), de modo que nunca queda una identidad a medias.
 
 Para el acceso como invitado se eliminó el uso de contraseñas fijas en base de datos (remediación de C-22): el endpoint \cod{POST /api/auth/invitado} emite una identidad efímera mediante un token JWT de 2 horas con rol \cod{invitado}, sin almacenar contraseña en \cod{usuario} y con permiso exclusivo de lectura del catálogo público.
 
-\subsection{Estados de la identidad}
+\subsection{ESTADOS DE LA IDENTIDAD}
 
 Cada identidad tiene un estado dentro de su ciclo de vida: \textbf{activa}, \textbf{suspendida} o \textbf{revocada}. La suspensión es temporal y reversible; la revocación es definitiva. La Figura~\ref{fig:estados} y la Tabla~\ref{tab:transiciones} definen las transiciones permitidas.
 
@@ -366,11 +374,11 @@ Revocada $\rightarrow$ cualquiera & Nadie & Una persona que regresa recibe una i
 \end{longtable}
 \end{tabla}
 
-\subsection{Registro de altas, bajas y cambios de función}
+\subsection{REGISTRO DE ALTAS, BAJAS Y CAMBIOS DE FUNCIÓN}
 
 Toda transición de estado y todo cambio de rol genera un evento en el registro de auditoría (Parte~4) con el autor, la identidad afectada, el valor anterior, el valor nuevo, el motivo, la fecha y la IP de origen. Así, las altas corresponden a \cod{IDENTIDAD_ALTA}, las suspensiones y bajas a \cod{IDENTIDAD_SUSPENDIDA} / \cod{USUARIO_DESACTIVADO} y los cambios de función a \cod{ROL_CAMBIO}, superando la limitación inicial donde solo se guardaba la fecha de creación.
 
-\subsection{Bloqueo efectivo de identidades desactivadas}
+\subsection{BLOQUEO EFECTIVO DE IDENTIDADES DESACTIVADAS}
 
 En el diagnóstico inicial, el login rechazaba a una identidad con \cod{activo = false}, pero un token emitido antes de la desactivación seguía operando hasta expirar. Para remediar esta brecha (control C-05), el esquema incorpora el tipo \cod{estado_identidad} sincronizado con \cod{activo} y el middleware \cod{verifyToken} consulta en tiempo real la base de datos y la lista negra de sesiones en cada petición autenticada (Listados~\ref{lst:estado} y \ref{lst:verify}).
 
@@ -413,7 +421,7 @@ export const verifyToken = async (req, res, next) => {
 };
 \end{lstlisting}
 
-\subsection{Gestión de cambios de rol con autorización y auditoría}
+\subsection{GESTIÓN DE CAMBIOS DE ROL CON AUTORIZACIÓN Y AUDITORÍA}
 
 El cambio de rol es una operación de alto riesgo implementada en el endpoint \cod{PUT /api/usuarios/:id/rol} con el siguiente procedimiento:
 
@@ -424,7 +432,7 @@ El cambio de rol es una operación de alto riesgo implementada en el endpoint \c
   \item \textbf{Revisión.} Los eventos \cod{ROL_CAMBIO} tienen severidad alta y se auditan en el panel administrativo (Parte~4).
 \end{enumerate}
 
-\subsection{Estado de implementación}
+\subsection{ESTADO DE IMPLEMENTACIÓN}
 
 \begin{tabla}
 \begin{longtable}{L{0.8cm}L{5.0cm}L{6.1cm}L{2.5cm}}
@@ -448,13 +456,13 @@ e & Cambios de rol con autorización y auditoría & Endpoint \cod{PUT /api/usuar
 
 \section{AUTENTICACIÓN}
 
-\subsection{Verificación segura de credenciales y almacenamiento de contraseñas}
+\subsection{VERIFICACIÓN SEGURA DE CREDENCIALES Y ALMACENAMIENTO DE CONTRASEÑAS}
 
 El login valida el formato de los datos con \cod{express-validator}, busca la identidad con una consulta parametrizada y compara la contraseña con \cod{bcrypt.compare}. Las contraseñas se almacenan mediante la función de derivación \cod{bcrypt} (biblioteca \cod{bcryptjs}) con un factor de trabajo de 10 y sal criptográfica aleatoria por usuario (\cod{$2b$10$}), cumpliendo el estándar recomendado por OWASP \cite{owaspcheat}. Los hashes nunca se devuelven en las respuestas de la API. Como mejora evolutiva para despliegues de mayor escala se contempla elevar el factor de trabajo a 12 o migrar a Argon2id (memoria de 19 MiB, 2 iteraciones y 1 hilo).
 
 En cuanto a la política de composición de contraseñas, el validador del sistema exige longitud mínima, presencia de caracteres numéricos o símbolos y rechaza contraseñas triviales, recomendándose para producción un mínimo de 10 caracteres conforme a NIST SP 800-63B \cite{nist63b}.
 
-\subsection{Criptosistema Unidireccional (Hash para contraseñas) y Criptosistema Bidireccional (Cifrado de Vigenère con alfabeto ASCII)}
+\subsection{CRIPTOSISTEMA UNIDIRECCIONAL (HASH PARA CONTRASEÑAS) Y CRIPTOSISTEMA BIDIRECCIONAL (CIFRADO DE VIGENÈRE CON ALFABETO ASCII)}
 
 En el diseño criptográfico del sistema se distinguen dos necesidades fundamentales según si el dato almacenado debe o no volver a recuperarse en texto claro:
 
@@ -557,7 +565,7 @@ export const descifrarVigenereASCII = (textoCifrado, clave = CLAVE_VIGENERE) => 
 };
 \end{lstlisting}
 
-\subsection{Protección contra intentos repetidos de autenticación}
+\subsection{PROTECCIÓN CONTRA INTENTOS REPETIDOS DE AUTENTICACIÓN}
 
 En el diagnóstico inicial, la defensa consistía en un CAPTCHA matemático cuyos operandos (\cod{captchaA} y \cod{captchaB}) aceptaba el servidor desde el cliente sin firma criptográfica ni bloqueo de cuenta. Para remediar esta vulnerabilidad se implementaron cuatro capas defensivas en el servidor, reflejadas en el flujo de la Figura~\ref{fig:login}:
 
@@ -611,7 +619,7 @@ if (!user || !ok) {
 limpiarFallosLogin(emailNormalizado);
 \end{lstlisting}
 
-\subsection{Expiración y revocación de sesiones}
+\subsection{EXPIRACIÓN Y REVOCACIÓN DE SESIONES}
 
 Los tokens JWT se firman con el algoritmo explícito \cod{HS256} y un secreto obligatorio (\cod{JWT_SECRET}) cargado desde el entorno (\cod{config/jwt.js} aborta el arranque si no está definido), con vencimiento de 8 horas para usuarios autenticados y 2 horas para invitados. Para resolver la revocación inmediata antes del vencimiento, se implementaron los siguientes controles:
 
@@ -621,11 +629,11 @@ Los tokens JWT se firman con el algoritmo explícito \cod{HS256} y un secreto ob
   \item \textbf{Fijación de algoritmo:} Se restringe la verificación a \cod{algorithms: ['HS256']} conforme a RFC 8725 \cite{rfc8725}.
 \end{itemize}
 
-\subsection{Segundo factor para operaciones de mayor riesgo}
+\subsection{SEGUNDO FACTOR PARA OPERACIONES DE MAYOR RIESGO}
 
 Se considera operación de mayor riesgo toda acción que concentra poder: cambio de rol, suspensión o revocación de identidades, anulación de pagos y cambios críticos de configuración. Para ellas se implementó en \cod{src/utils/totp.js} un verificador de segundo factor basado en contraseñas de un solo uso por tiempo (\textbf{TOTP, RFC~6238} \cite{rfc6238}) mediante \cod{HMAC-SHA1} de 6 dígitos con ventana de 30 segundos y secreto cargado desde variables de entorno (\cod{TOTP_SECRET}). Para ejecutar un cambio de rol en \cod{PUT /api/usuarios/:id/rol}, el administrador debe enviar el código vigente en la cabecera \cod{X-2FA-Token} (o campo \cod{codigo2fa}), verificándose con \cod{verificarCodigo2FA(token2FA)} antes de aplicar el cambio.
 
-\subsection{Mensajes de error que no revelan la existencia de cuentas}
+\subsection{MENSAJES DE ERROR QUE NO REVELAN LA EXISTENCIA DE CUENTAS}
 
 \begin{tabla}
 \begin{longtable}{L{3.6cm}L{4.9cm}L{5.0cm}}
@@ -646,7 +654,7 @@ Falla interna o \cod{/ping} & \cod{/ping} filtraba \cod{error.message} de la bas
 \end{longtable}
 \end{tabla}
 
-\subsection{Estado de implementación}
+\subsection{ESTADO DE IMPLEMENTACIÓN}
 
 \begin{tabla}
 \begin{longtable}{L{0.8cm}L{4.4cm}L{6.7cm}L{2.5cm}}
@@ -671,7 +679,7 @@ f & Mensajes que no revelan cuentas & Respuesta uniforme 401 con \cod{DUMMY_HASH
 
 \section{AUTORIZACIÓN}
 
-\subsection{Modelo de control de acceso}
+\subsection{MODELO DE CONTROL DE ACCESO}
 
 La autorización combina el control de acceso basado en roles (RBAC) con el control basado en atributos y contexto (ABAC), aplicándose de manera obligatoria en el servidor bajo el principio de \emph{denegar por defecto}: toda petición que no esté expresamente autorizada por una regla de negocio y una política de seguridad es rechazada y auditada. Para cada solicitud entrante, el servidor evalúa como mínimo los cinco elementos formales descritos en la Tabla~\ref{tab:evaluacion}.
 
@@ -695,7 +703,7 @@ e & Contexto relevante & Relación entre dos atributos (sujeto--objeto y jerarqu
 \end{longtable}
 \end{tabla}
 
-\subsection{Control en el servidor y diseño del motor de decisión}
+\subsection{CONTROL EN EL SERVIDOR Y DISEÑO DEL MOTOR DE DECISIÓN}
 
 El backend aplica el control de acceso directamente en la capa de servidor: las rutas de gestión de productos, usuarios y auditoría exigen \cod{verifyToken} seguido de la validación de privilegios, mientras que las protecciones del frontend en React (\cod{RutaAdmin} y ocultamiento de botones) cumplen únicamente una función de usabilidad. Para superar las limitaciones de un control puramente estático, el motor de decisión implementa tres salvaguardas:
 \begin{enumerate}
@@ -704,7 +712,7 @@ El backend aplica el control de acceso directamente en la capa de servidor: las 
   \item \textbf{Evaluación combinada de permisos y predicados de contexto:} El middleware central \cod{autorizar(permiso, predicado)} comprueba primero si el rol posee el permiso en la Matriz de Mínimo Privilegio y, acto seguido, ejecuta el predicado relacional sobre los atributos del sujeto y del objeto. Cualquier fallo dispara un código HTTP 403 y registra el evento \cod{ACCESO_DENEGADO}.
 \end{enumerate}
 
-\subsection{Punto e: El contexto relevante, la relación entre dos atributos, la jerarquía sobre información crítica y el uso de políticas}
+\subsection{PUNTO E: EL CONTEXTO RELEVANTE, LA RELACIÓN ENTRE DOS ATRIBUTOS, LA JERARQUÍA SOBRE INFORMACIÓN CRÍTICA Y EL USO DE POLÍTICAS}
 
 Un modelo RBAC simple resulta insuficiente cuando dos usuarios comparten el mismo rol o cuando un rol superior debe supervisar operaciones de roles subordinados. Por ello, el \textbf{Punto e} evalúa el \textbf{contexto relevante} como una función lógica $P(\text{Atributo}_{\text{sujeto}}, \text{Atributo}_{\text{objeto/subordinado}})$ que compara dos atributos antes de conceder el acceso:
 
@@ -713,7 +721,7 @@ Un modelo RBAC simple resulta insuficiente cuando dos usuarios comparten el mism
   \item \textbf{Relación de no reflexividad (anti-autoescalamiento y anti-autobloqueo):} Compara el identificador del solicitante (\cod{req.user.id}) con el identificador del usuario objetivo (\cod{req.params.id}) bajo la condición $\text{id}_{\text{solicitante}} \neq \text{id}_{\text{objetivo}}$. Impide que un Administrador modifique su propio rol o desactive su propia cuenta.
 \end{itemize}
 
-\subsubsection{¿Por qué una autoridad o rol mayor puede tener información crítica sobre otros roles a su cargo? (Énfasis en la Matriz de Mínimo Privilegio)}
+\subsubsection{¿POR QUÉ UNA AUTORIDAD O ROL MAYOR PUEDE TENER INFORMACIÓN CRÍTICA SOBRE OTROS ROLES A SU CARGO? (ÉNFASIS EN LA MATRIZ DE MÍNIMO PRIVILEGIO)}
 
 En la operación de Yasumi Venta existe una jerarquía funcional ($\text{Administrador} > \text{Vendedor} > \text{Cliente} > \text{Invitado}$). Una autoridad o rol superior requiere acceder a determinados atributos críticos o delicados de los roles a su cargo no como un privilegio arbitrario, sino por \textbf{necesidad operativa, supervisión de cumplimiento, resolución de incidentes y responsabilidad legal}. No obstante, dicho acceso está estrictamente acotado por la \textbf{Matriz de Mínimo Privilegio} (Parte~6, Tabla~\ref{tab:matriz}): el rol superior recibe \emph{únicamente} la visibilidad necesaria para cumplir su función supervisora, negándosele todo acceso que exceda ese propósito:
 
@@ -731,7 +739,7 @@ En la operación de Yasumi Venta existe una jerarquía funcional ($\text{Adminis
   \item \textbf{Aislamiento del Cliente e Invitado:} El Cliente carece de roles a su cargo; la Matriz de Mínimo Privilegio le otorga acceso \textbf{R* / U*} únicamente cuando su atributo de identidad coincide con el titular del recurso (\cod{id_cliente}). El Invitado no posee atributos de propiedad y queda confinado a la lectura pública (\textbf{R}) de productos activos.
 \end{enumerate}
 
-\subsubsection{Articulación y uso de Políticas de Seguridad en la evaluación del contexto}
+\subsubsection{ARTICULACIÓN Y USO DE POLÍTICAS DE SEGURIDAD EN LA EVALUACIÓN DEL CONTEXTO}
 
 Cada regla contextual programada en el servidor materializa de forma directa las Políticas de Seguridad definidas en la Parte~7, evitando que las decisiones de acceso dependan del criterio subjetivo del programador:
 \begin{itemize}
@@ -760,7 +768,7 @@ Cliente $\rightarrow$ Recurso propio & \cod{sujeto.rol = 'cliente'} $\land$ \cod
 \end{longtable}
 \end{tabla}
 
-\subsection{Estado de implementación}
+\subsection{ESTADO DE IMPLEMENTACIÓN}
 
 \begin{tabla}
 \begin{longtable}{L{0.8cm}L{4.4cm}L{6.7cm}L{2.5cm}}
@@ -782,115 +790,13 @@ e & Contexto (relación entre dos atributos) & Reglas de relación sujeto--objet
 \end{longtable}
 \end{tabla}
 
-\subsection{Implementación en código del control de autorización y contexto}
-
-A continuación se presenta la implementación en código que materializa la matriz de permisos, el middleware de decisión con registro de auditoría y los predicados que evalúan la relación entre atributos del sujeto y del objeto.
-
-\begin{lstlisting}[language=JavaScript,caption={Matriz de permisos, políticas y middleware de autorización en el servidor.},label={lst:autorizar}]
-// src/utils/permisos.js - Traduccion directa de la Matriz de Minimo Privilegio (Parte 6)
-export const PERMISOS = {
-  admin:    ['productos:*', 'categorias:*', 'usuarios:leer', 'usuarios:crear',
-             'usuarios:estado', 'usuarios:rol', 'clientes:leer', 'clientes:editar',
-             'reservas:*', 'pagos:leer', 'pagos:editar', 'delivery:*',
-             'reportes:leer', 'logs:leer', 'config:editar'],
-  vendedor: ['productos:leer', 'categorias:leer', 'clientes:leer',
-             'reservas:crear', 'reservas:leer', 'reservas:editar_propia',
-             'pagos:crear', 'pagos:leer', 'delivery:leer', 'delivery:editar'],
-  cliente:  ['productos:leer', 'categorias:leer', 'perfil:leer_propio',
-             'perfil:editar_propio', 'reservas:crear', 'reservas:leer_propia',
-             'pagos:leer_propio', 'delivery:leer_propio'],
-  invitado: ['productos:leer', 'categorias:leer']
-};
-
-// src/middleware/authorize.js - Motor de decision RBAC + ABAC (Politica 3)
-export const autorizar = (permiso, predicadoContexto = null) => async (req, res, next) => {
-  const rolVigente = req.user?.rol;
-  const permisosRol = PERMISOS[rolVigente] ?? []; // R3.1: Rol desconocido = sin permisos
-  const [recurso] = permiso.split(':');
-  const tienePermiso = permisosRol.includes(permiso) || permisosRol.includes(`${recurso}:*`);
-
-  // Evaluacion del Punto e: relacion entre atributos del sujeto y del objeto
-  let resultadoContexto = { ok: tienePermiso, motivo: 'ROL_INSUFICIENTE' };
-  if (tienePermiso && predicadoContexto) {
-    resultadoContexto = await predicadoContexto(req);
-  }
-
-  if (!tienePermiso || !resultadoContexto.ok) {
-    await registrarAcceso(req, req.user?.id ?? null,
-      `ACCESO_DENEGADO: rol=${rolVigente} permiso=${permiso} motivo=${resultadoContexto.motivo}`);
-    return res.status(403).json({
-      error: 'Acceso denegado: no cumple los permisos o el contexto requerido por la politica.'
-    });
-  }
-
-  // Si un rol superior accede a informacion delicada de roles a su cargo, dejar trazabilidad
-  if (resultadoContexto.auditarSupervision) {
-    await registrarAcceso(req, req.user.id, resultadoContexto.auditarSupervision);
-  }
-  next();
-};
-\end{lstlisting}
-
-\begin{lstlisting}[language=JavaScript,caption={Predicados de contexto que evalúan la relación entre dos atributos y la jerarquía de roles.},label={lst:predicado}]
-// src/middleware/contextoPredicados.js
-// 1. Relacion Persona-Objeto en Reservas (Admin supervisa, Vendedor las que atiende, Cliente las propias)
-export const contextoReserva = async (req) => {
-  const { rows } = await pool.query(
-    'SELECT id_cliente, id_usuario, estado FROM reserva WHERE id_reserva = $1',
-    [req.params.id]
-  );
-  if (!rows[0]) return { ok: false, motivo: 'RECURSO_INEXISTENTE' };
-  const reserva = rows[0];
-
-  if (req.user.rol === 'admin') {
-    return {
-      ok: true,
-      auditarSupervision: `SUPERVISION_ROL_CARGO: Admin #${req.user.id} accedio a reserva #${req.params.id} (vendedor #${reserva.id_usuario}, cliente #${reserva.id_cliente})`
-    };
-  }
-  if (req.user.rol === 'vendedor') {
-    const esVendedorAsignado = reserva.id_usuario === req.user.id;
-    return {
-      ok: esVendedorAsignado,
-      motivo: esVendedorAsignado ? 'OK' : 'VENDEDOR_NO_ASIGNADO_AL_OBJETO',
-      auditarSupervision: esVendedorAsignado
-        ? `SUPERVISION_ROL_CARGO: Vendedor #${req.user.id} consulto datos de entrega de cliente #${reserva.id_cliente}`
-        : null
-    };
-  }
-  if (req.user.rol === 'cliente') {
-    const esTitular = reserva.id_cliente === req.user.id;
-    return { ok: esTitular, motivo: esTitular ? 'OK' : 'CLIENTE_NO_PROPIETARIO' };
-  }
-  return { ok: false, motivo: 'ROL_SIN_CONTEXTO' };
-};
-
-// 2. Relacion Sujeto Superior - Sujeto Subordinado en Cambio de Rol (Politicas R1.4, R3.6 y R3.7)
-export const contextoCambioRolJerarquico = async (req) => {
-  const idSolicitante = req.user?.id;
-  const idObjetivo = parseInt(req.params.id, 10);
-  const token2FA = req.headers['x-2fa-token'] || req.body?.codigo2fa;
-
-  if (idSolicitante === idObjetivo) {
-    return { ok: false, motivo: 'PROHIBIDO_AUTOMODIFICAR_PROPIO_ROL_R3_7' };
-  }
-  if (!verificarCodigo2FA(token2FA)) {
-    return { ok: false, motivo: 'FALTA_SEGUNDO_FACTOR_2FA_R3_6' };
-  }
-  return {
-    ok: true,
-    auditarSupervision: `ROL_CAMBIO: Admin #${idSolicitante} modifico privilegios de usuario #${idObjetivo} con 2FA TOTP`
-  };
-};
-\end{lstlisting}
-
 \section{AUDITORÍA Y TRAZABILIDAD}
 
-\subsection{Situación y arquitectura de trazabilidad}
+\subsection{SITUACIÓN Y ARQUITECTURA DE TRAZABILIDAD}
 
 El sistema registra la actividad forense sobre la tabla base \cod{log_acceso} y su vista estructurada \cod{log_auditoria}, consultables únicamente por el rol Administrador a través de \cod{GET /api/logs} y exportables a formato PDF desde el módulo de reportes. A diferencia del esquema básico inicial —que solo almacenaba ingresos y salidas simples y poseía borrado en cascada—, la arquitectura de auditoría cubre de forma integral seis categorías obligatorias: (a) autenticaciones exitosas, fallidas y bloqueos; (b) cambios de roles dentro de usuarios; (c) trazabilidad del uso de permisos de roles superiores sobre información delicada de roles a su cargo; (d) intentos de roles inferiores hacia permisos denegados; (e) uso de cuentas de emergencia; y (f) cambios de configuración motivados por amenazas al sistema.
 
-\subsection{Catálogo de eventos que se registran}
+\subsection{CATÁLOGO DE EVENTOS QUE SE REGISTRAN}
 
 \begin{tabla}
 \begin{longtable}{L{3.8cm}L{5.2cm}L{1.7cm}L{2.5cm}}
@@ -917,7 +823,7 @@ El sistema registra la actividad forense sobre la tabla base \cod{log_acceso} y 
 \end{longtable}
 \end{tabla}
 
-\subsection{Trazabilidad de cambios de roles dentro de usuarios (Punto b)}
+\subsection{TRAZABILIDAD DE CAMBIOS DE ROLES DENTRO DE USUARIOS (PUNTO B)}
 
 La modificación del rol de un usuario en la tabla \cod{usuario} constituye uno de los eventos más críticos porque altera la posición del sujeto dentro de la Matriz de Mínimo Privilegio. Cuando un Administrador ejecuta \cod{PUT /api/usuarios/:id/rol}, el controlador \cod{userController.cambiarRol} realiza la trazabilidad completa antes de confirmar la operación:
 \begin{enumerate}
@@ -926,7 +832,7 @@ La modificación del rol de un usuario en la tabla \cod{usuario} constituye uno 
   \item Inserta de manera atómica el evento \cod{ROL_CAMBIO} dejando constancia de: \textbf{quién ejecutó el cambio} (\cod{id_solicitante}), \textbf{a qué usuario afectó} (\cod{id_target}), \textbf{el rol anterior y el rol nuevo}, \textbf{la confirmación 2FA}, \textbf{la dirección IP} y \textbf{el navegador (\cod{User-Agent})}.
 \end{enumerate}
 
-\subsection{Trazabilidad de usos de permisos de roles superiores en información delicada de roles a su cargo (Punto c)}
+\subsection{TRAZABILIDAD DE USOS DE PERMISOS DE ROLES SUPERIORES EN INFORMACIÓN DELICADA DE ROLES A SU CARGO (PUNTO C)}
 
 Como se fundamentó en la Parte~3, un rol superior (\cod{Administrador} respecto a \cod{Vendedor}/\cod{Cliente}, o \cod{Vendedor} respecto a \cod{Cliente}) posee acceso legítimo a información delicada de los roles bajo su supervisión. Sin embargo, para prevenir el abuso de autoridad o la consulta curiosa no justificada (\emph{insider threat}), el sistema aplica el principio de \textbf{vigilancia sobre el supervisor}: todo acceso o acción de un rol superior sobre datos sensibles de un rol subordinado genera un rastro obligatorio en la bitácora, según detalla la Tabla~\ref{tab:trazabilidad_superiores}.
 
@@ -951,7 +857,7 @@ Vendedor & Cliente & Teléfono personal, dirección física de entrega, referenc
 
 De este modo, aunque el Administrador o el Vendedor tienen permiso en la Matriz de Mínimo Privilegio para ver dicha información delicada, \textbf{no pueden hacerlo en el anonimato}: cada consulta o modificación queda firmada con su identidad, hora exacta, dirección IP y agente de usuario.
 
-\subsection{Trazabilidad de intentos de roles inferiores a permisos denegados (Punto d)}
+\subsection{TRAZABILIDAD DE INTENTOS DE ROLES INFERIORES A PERMISOS DENEGADOS (PUNTO D)}
 
 Cuando una identidad con un rol inferior (\cod{Invitado}, \cod{Cliente} o \cod{Vendedor}) intenta ejecutar una operación que supera su nivel de privilegio (escalada vertical) o intenta acceder a datos de otro usuario de su mismo nivel (escalada horizontal), el servidor rechaza la petición en el middleware (\cod{isAdmin} o \cod{autorizar}) e inmediatamente registra el evento \cod{ACCESO_DENEGADO}:
 \begin{itemize}
@@ -961,7 +867,7 @@ Cuando una identidad con un rol inferior (\cod{Invitado}, \cod{Cliente} o \cod{V
   \item \textbf{Correlación de anomalías:} La acumulación de tres o más eventos \cod{ACCESO_DENEGADO} provenientes de un mismo usuario en una ventana de 10 minutos activa una alerta de posible cuenta comprometida o intento deliberado de intrusión interna.
 \end{itemize}
 
-\subsection{Punto e: Uso de cuentas de emergencia}
+\subsection{PUNTO E: USO DE CUENTAS DE EMERGENCIA}
 
 Para responder a situaciones extremas donde las cuentas administrativas ordinarias no puedan operar (por ejemplo, bloqueo simultáneo por ataque de denegación de servicio sobre cuentas, indisponibilidad del dispositivo de segundo factor del administrador principal o compromiso de credenciales administrativas previsto en la Parte~5), el sistema contempla una única \textbf{cuenta de emergencia (\emph{break-glass account})}, sujeta al más alto estándar de trazabilidad (Política~8, reglas R8.2 a R8.5):
 
@@ -976,7 +882,7 @@ Para responder a situaciones extremas donde las cuentas administrativas ordinari
   \item \textbf{Inmutabilidad y auditoría post-uso obligatoria:} Ninguna acción realizada con la cuenta de emergencia puede desactivar el servicio de auditoría ni modificar filas de \cod{log_auditoria}. Dentro de las 24 horas posteriores a su uso, el responsable del negocio y el responsable de seguridad deben auditar cada registro \cod{EMERGENCIA_USO}, firmar el acta de incidente y rotar inmediatamente la contraseña y el secreto 2FA de la cuenta.
 \end{enumerate}
 
-\subsection{Punto f: Cambios de configuración y notas de actualización en base a distintas amenazas al sistema}
+\subsection{PUNTO F: CAMBIOS DE CONFIGURACIÓN Y NOTAS DE ACTUALIZACIÓN EN BASE A DISTINTAS AMENAZAS AL SISTEMA}
 
 La seguridad de un sistema en producción no es estática: a medida que se identifican o materializan distintas amenazas contra la infraestructura, es indispensable ajustar los parámetros defensivos del servidor y dejar trazabilidad tanto en el registro en vivo (\cod{CONFIG_CAMBIO}) como en el historial técnico de \textbf{Notas de Actualización de Seguridad}.
 
@@ -1008,7 +914,7 @@ ACT-09 & Borrado, truncado o alteración maliciosa de la evidencia forense en BD
 \end{longtable}
 \end{tabla}
 
-\subsection{Estructura del registro y protección de su integridad}
+\subsection{ESTRUCTURA DEL REGISTRO Y PROTECCIÓN DE SU INTEGRIDAD}
 
 El repositorio de auditoría funciona bajo un esquema estricto de \textbf{solo anexado (\emph{Append-Only})} sobre la tabla física \cod{log_acceso} y su vista forense \cod{log_auditoria}. En PostgreSQL (\cod{db/bd_yasumi_postgres.sql}) se eliminó el borrado en cascada sobre los registros y se implementaron dos disparadores (\emph{triggers}) complementarios: \cod{trg_proteger_log_acceso} (\cod{BEFORE UPDATE OR DELETE FOR EACH ROW}) y \cod{trg_proteger_log_acceso_truncate} (\cod{BEFORE TRUNCATE FOR EACH STATEMENT}), los cuales bloquean tanto la edición o eliminación individual de filas como el vaciado masivo de la tabla arrojando \cod{permission denied}. Adicionalmente, se documenta la extensión de encadenamiento criptográfico SHA-256 (\cod{hash_previo} $\rightarrow$ \cod{hash_evento}) para verificar la integridad secuencial de los registros exportados.
 
@@ -1061,7 +967,7 @@ export const registrarAcceso = async (req, userId, evento) => {
 };
 \end{lstlisting}
 
-\subsection{Reglas de contenido, conservación, monitoreo y alertas}
+\subsection{REGLAS DE CONTENIDO, CONSERVACIÓN, MONITOREO Y ALERTAS}
 
 \begin{itemize}
   \item \textbf{Exclusión de secretos:} Nunca se almacenan contraseñas en claro, hashes bcrypt, tokens JWT ni códigos TOTP dentro de los registros. En el campo \cod{detalle} únicamente se guardan identificadores, roles previo y nuevo, parámetros de configuración no secretos y motivos de negocio.
@@ -1087,7 +993,7 @@ Cualquier evento \cod{CONFIG_CAMBIO} o \cod{LOG_BRECHA} & Alta / Crítica & Vali
 \end{longtable}
 \end{tabla}
 
-\subsection{Estado de implementación}
+\subsection{ESTADO DE IMPLEMENTACIÓN}
 
 \begin{tabla}
 \begin{longtable}{L{0.8cm}L{4.4cm}L{6.7cm}L{2.5cm}}
@@ -1112,15 +1018,15 @@ f & Cambios de configuración y notas ante amenazas & Eventos \cod{CONFIG_CAMBIO
 
 \section{RECUPERACIÓN Y CONTINUIDAD}
 
-\subsection{Principios y responsables}
+\subsection{PRINCIPIOS Y RESPONSABLES}
 
 Los procedimientos siguen el ciclo de respuesta a incidentes de NIST: preparación, detección y análisis, contención, erradicación, recuperación y lecciones aprendidas \cite{nist61}. Se adoptan tres principios: (1) \emph{fallar cerrado}: ante la duda, las operaciones de escritura y de administración se bloquean, mientras que la consulta pública del catálogo continúa; (2) \emph{preservar evidencia} antes de corregir; y (3) \emph{recuperar por fases}, verificando cada una antes de abrir la siguiente. Los roles de respuesta son el \textbf{responsable de seguridad} (decide la contención y la comunicación), el \textbf{administrador técnico} (ejecuta los controles de emergencia y la restauración) y el \textbf{responsable del negocio} (autoriza el cierre y comunica a las personas afectadas).
 
-\subsection{Procedimientos por escenario}
+\subsection{PROCEDIMIENTOS POR ESCENARIO}
 
 Cada tabla indica qué operaciones pueden continuar, cuáles deben bloquearse y qué controles de emergencia se necesitan.
 
-\subsubsection{a) Compromiso de una cuenta privilegiada}
+\subsubsection{A) COMPROMISO DE UNA CUENTA PRIVILEGIADA}
 
 \begin{tabla}
 \begin{longtable}{L{3.4cm}L{10.2cm}}
@@ -1136,7 +1042,7 @@ Cada tabla indica qué operaciones pueden continuar, cuáles deben bloquearse y 
 \end{longtable}
 \end{tabla}
 
-\subsubsection{b) Indisponibilidad del servicio de identidad}
+\subsubsection{B) INDISPONIBILIDAD DEL SERVICIO DE IDENTIDAD}
 
 \begin{tabla}
 \begin{longtable}{L{3.4cm}L{10.2cm}}
@@ -1152,7 +1058,7 @@ Cada tabla indica qué operaciones pueden continuar, cuáles deben bloquearse y 
 \end{longtable}
 \end{tabla}
 
-\subsubsection{c) Alteración no autorizada de expedientes}
+\subsubsection{C) ALTERACIÓN NO AUTORIZADA DE EXPEDIENTES}
 
 Los expedientes son los datos de clientes, reservas, pagos y productos.
 
@@ -1170,7 +1076,7 @@ Los expedientes son los datos de clientes, reservas, pagos y productos.
 \end{longtable}
 \end{tabla}
 
-\subsubsection{d) Pérdida o corrupción de registros}
+\subsubsection{D) PÉRDIDA O CORRUPCIÓN DE REGISTROS}
 
 \begin{tabla}
 \begin{longtable}{L{3.4cm}L{10.2cm}}
@@ -1186,7 +1092,7 @@ Los expedientes son los datos de clientes, reservas, pagos y productos.
 \end{longtable}
 \end{tabla}
 
-\subsubsection{e) Recuperación después de un incidente}
+\subsubsection{E) RECUPERACIÓN DESPUÉS DE UN INCIDENTE}
 
 \begin{tabla}
 \begin{longtable}{L{3.4cm}L{10.2cm}}
@@ -1201,7 +1107,7 @@ Los expedientes son los datos de clientes, reservas, pagos y productos.
 \end{longtable}
 \end{tabla}
 
-\subsection{Resumen de operaciones por escenario}
+\subsection{RESUMEN DE OPERACIONES POR ESCENARIO}
 
 \begin{tabla}
 \begin{longtable}{L{4.8cm}C{2.0cm}C{2.0cm}C{2.0cm}C{2.0cm}}
@@ -1225,7 +1131,7 @@ Consultar registros de auditoría & R & B & C (solo lectura) & R\\
 \end{longtable}
 \end{tabla}
 
-\subsection{Controles de emergencia}
+\subsection{CONTROLES DE EMERGENCIA}
 
 \begin{tabla}
 \begin{longtable}{L{4.2cm}L{6.6cm}L{2.7cm}}
@@ -1252,7 +1158,7 @@ Como objetivos de continuidad, el grupo propone un tiempo máximo de recuperaci�
 
 \section{DISEÑO DE AUTORIZACIÓN}
 
-\subsection{Matriz de mínimo privilegio}
+\subsection{MATRIZ DE MÍNIMO PRIVILEGIO}
 
 El principio de mínimo privilegio establece que cada rol recibe únicamente los permisos que necesita para su función \cite{nist53}. La Tabla~\ref{tab:matriz} define la matriz para los cuatro roles. Las letras indican: \textbf{C} crear, \textbf{R} leer, \textbf{U} actualizar, \textbf{D} desactivar (borrado lógico), \textbf{*} solo los registros propios, \textbf{(2FA)} requiere segundo factor, y \textbf{---} sin acceso. Toda combinación que no figura en la matriz está denegada.
 
@@ -1282,7 +1188,7 @@ Configuración y modo de emergencia & U (2FA) & --- & --- & ---\\
 \end{longtable}
 \end{tabla}
 
-\subsection{Justificación por rol}
+\subsection{JUSTIFICACIÓN POR ROL}
 
 \begin{itemize}
   \item \textbf{Administrador.} Gestiona identidades, catálogo y supervisión. Sus operaciones de mayor impacto (cambio de rol, anulación de pagos y configuración) exigen segundo factor. No puede modificar su propio rol ni su propio estado, y el sistema siempre conserva al menos un administrador activo.
@@ -1291,7 +1197,7 @@ Configuración y modo de emergencia & U (2FA) & --- & --- & ---\\
   \item \textbf{Invitado.} Solo lectura del catálogo activo, con una identidad efímera sin cuenta.
 \end{itemize}
 
-\subsection{Verificación de la matriz contra la API actual}
+\subsection{VERIFICACIÓN DE LA MATRIZ CONTRA LA API ACTUAL}
 
 \begin{tabla}
 \begin{longtable}{L{4.4cm}L{2.9cm}L{3.9cm}L{2.5cm}}
@@ -1316,7 +1222,7 @@ Reservas, pagos y entregas & Según la matriz & Tablas y predicados ABAC definid
 \end{longtable}
 \end{tabla}
 
-\section{POLÍTICAS DE SEGURIDAD APLICABLES A SU PROYECTO}
+\section{POLÍTICAS DE SEGURIDAD APLICABLE A SU PROYECTO}
 
 Para garantizar que los controles técnicos de Yasumi Venta estén respaldados por un marco de gobernanza formal (alineado a estándares como ISO/IEC 27001 \cite{iso27001} y a la metodología de estructuración de políticas de seguridad de la información de Pirani Risk \cite{pirani}), las políticas de seguridad se estructuran bajo los siguientes lineamientos organizacionales:
 
@@ -1334,7 +1240,7 @@ Para garantizar que los controles técnicos de Yasumi Venta estén respaldados p
 
 A continuación, este marco normativo se traduce en ocho políticas específicas. A diferencia de los textos genéricos, cada regla detalla exactamente cómo se implementa en la arquitectura de Yasumi Venta y su estado actual:
 \pagebreak
-\subsection{Política 1. Gestión de identidades y cuentas}
+\subsection{POLÍTICA 1. GESTIÓN DE IDENTIDADES Y CUENTAS}
 
 \begin{itemize}
     \item \textbf{Objetivo:} Garantizar que cada persona o sistema que accede a Yasumi Venta tenga una identidad única, vigente y trazable durante todo su ciclo de vida.
@@ -1359,7 +1265,7 @@ R1.6 & No existen cuentas compartidas ni cuentas con contraseña conocida. & El 
 \end{longtable}
 \end{tabla}
 
-\subsection{Política 2. Autenticación y protección de credenciales}
+\subsection{POLÍTICA 2. AUTENTICACIÓN Y PROTECCIÓN DE CREDENCIALES}
 
 \begin{itemize}
     \item \textbf{Objetivo:} Asegurar que solo quien demuestre su identidad acceda al sistema y que las credenciales estén protegidas en reposo, en tránsito y en uso.
@@ -1387,7 +1293,7 @@ R2.9 & No se publican credenciales reales ni contraseñas fijas en repositorios.
 \end{longtable}
 \end{tabla}
 
-\subsection{Política 3. Autorización y mínimo privilegio}
+\subsection{POLÍTICA 3. AUTORIZACIÓN Y MÍNIMO PRIVILEGIO}
 
 \begin{itemize}
     \item \textbf{Objetivo:} Limitar el acceso de cada identidad exclusivamente a las operaciones y recursos estrictamente necesarios para cumplir su función.
@@ -1406,14 +1312,14 @@ R3.1 & Se deniega por defecto; un rol desconocido no tiene permisos. & \cod{auto
 R3.2 & Toda decisión de acceso se toma en el servidor; el frontend solo orienta. & \cod{verifyToken} e \cod{isAdmin} en las rutas; \cod{RutaAdmin} es solo de interfaz (C-03). & \Si\\
 R3.3 & Los permisos siguen la matriz de mínimo privilegio. & Tabla~\ref{tab:matriz}, Tabla~\ref{tab:contexto_atributos} y Tabla~\ref{tab:matrizapi} (C-04). & \Si\\
 R3.4 & El rol y el estado se leen de la base de datos en cada petición. & \cod{verifyToken} consulta \cod{SELECT activo, rol FROM usuario} en cada petición (C-05). & \Si\\
-R3.5 & Se verifica la propiedad y relación jerárquica del recurso (persona--objeto). & Predicados de contexto y relación entre dos atributos (Listado~\ref{lst:predicado}). & \Si\\
+R3.5 & Se verifica la propiedad y relación jerárquica del recurso (persona--objeto). & Predicados de contexto y relación entre dos atributos (Tabla~\ref{tab:contexto_atributos}). & \Si\\
 R3.6 & Las operaciones de riesgo exigen autenticación reforzada. & Validación obligatoria de segundo factor TOTP (\cod{X-2FA-Token}) en cambios de rol. & \Si\\
 R3.7 & Nadie modifica su propio rol ni su propio estado. & Validación estricta en \cod{cambiarRol} y \cod{toggleActivo} ($\text{id}_{\text{solicitante}} \neq \text{id}_{\text{target}}$) (C-12). & \Si\\
 \bottomrule
 \end{longtable}
 \end{tabla}
 
-\subsection{Política 4. Protección de datos}
+\subsection{POLÍTICA 4. PROTECCIÓN DE DATOS}
 
 \begin{itemize}
     \item \textbf{Objetivo:} Proteger la confidencialidad e integridad de los datos personales (ej. direcciones de entrega), financieros y comerciales contra exposiciones no autorizadas.
@@ -1442,7 +1348,7 @@ R4.10 & Los respaldos se cifran y se guardan fuera del servidor. & Procedimiento
 \end{longtable}
 \end{tabla}
 
-\subsection{Política 5. Registro, monitoreo y auditoría}
+\subsection{POLÍTICA 5. REGISTRO, MONITOREO Y AUDITORÍA}
 
 \begin{itemize}
     \item \textbf{Objetivo:} Disponer de evidencia confiable, inalterable y trazable de los eventos críticos ocurridos en el sistema para detectar comportamientos anómalos.
@@ -1467,7 +1373,7 @@ R5.6 & Las marcas de tiempo usan zona horaria. & Marca temporal automática en P
 \end{longtable}
 \end{tabla}
 
-\subsection{Política 6. Desarrollo seguro y gestión de cambios}
+\subsection{POLÍTICA 6. DESARROLLO SEGURO Y GESTIÓN DE CAMBIOS}
 
 \begin{itemize}
     \item \textbf{Objetivo:} Prevenir que las actualizaciones o modificaciones al código fuente introduzcan vulnerabilidades o degraden los controles de seguridad existentes.
@@ -1493,7 +1399,7 @@ R6.7 & Los errores no filtran detalles internos. & Controladores y ruta \cod{/pi
 \end{longtable}
 \end{tabla}
 
-\subsection{Política 7. Continuidad operativa y respuesta a incidentes}
+\subsection{POLÍTICA 7. CONTINUIDAD OPERATIVA Y RESPUESTA A INCIDENTES}
 
 \begin{itemize}
     \item \textbf{Objetivo:} Mantener las funciones críticas del negocio o restablecer el servicio de forma ordenada, segura y en tiempos aceptables ante contingencias.
@@ -1517,7 +1423,7 @@ R7.5 & Cada incidente termina con un informe posterior y acciones correctivas. &
 \end{longtable}
 \end{tabla}
 
-\subsection{Política 8. Excepciones y cuentas de emergencia}
+\subsection{POLÍTICA 8. EXCEPCIONES Y CUENTAS DE EMERGENCIA}
 
 \begin{itemize}
     \item \textbf{Objetivo:} Establecer un marco de control estricto que permita operaciones excepcionales sin vulnerar la trazabilidad ni crear puertas traseras permanentes.
@@ -1546,7 +1452,7 @@ R8.6 & Las cuentas de prueba se eliminan o se desactivan en producción. & Invit
 
 Una regla solo es útil si puede comprobarse. Cada control de la Tabla~\ref{tab:controles} se asocia con una regla de la Parte~7, una prueba reproducible y un resultado esperado. El campo \emph{Estado} indica si la prueba se supera con el código actual (\Si), si se supera solo en parte (\Pa) o si depende de un control por implementar (\No). Las pruebas que dependen de controles pendientes se convierten en los criterios de aceptación de su implementación.
 
-\subsection{Matriz de controles verificables}
+\subsection{MATRIZ DE CONTROLES VERIFICABLES}
 
 \begin{tabla}
 \begin{longtable}{L{1.0cm}L{1.1cm}L{4.3cm}L{3.7cm}L{2.5cm}}
@@ -1586,7 +1492,7 @@ C-23 & R4.7 & \cod{git ls-files} filtrando \cod{.env}. & Solo aparece \cod{.env.
 \end{longtable}
 \end{tabla}
 
-\subsection{Procedimiento de prueba}
+\subsection{PROCEDIMIENTO DE PRUEBA}
 
 Las pruebas se ejecutan contra una instancia local con una base de datos de prueba (o mediante el script \cod{npm run test:security}). Los siguientes comandos ilustran las pruebas C-01, C-03, C-04, C-06 y C-07; \texttt{TOKEN\_CLIENTE} y \texttt{TOKEN\_ADMIN} se obtienen con un login previo.
 
@@ -1631,11 +1537,11 @@ UPDATE log_acceso SET evento = 'X' WHERE id_log = 1;
 TRUNCATE TABLE log_acceso;
 \end{lstlisting}
 
-\subsection{Evidencias que se conservan}
+\subsection{EVIDENCIAS QUE SE CONSERVAN}
 
 Para cada prueba se archiva: (1) el comando o la acción ejecutada, (2) la respuesta obtenida, (3) la captura o consulta del registro de auditoría correspondiente, (4) la fecha y quién la ejecutó y (5) el resultado (aprobada o fallida). Las evidencias se guardan en el repositorio de documentación, con el identificador del control en el nombre del archivo.
 
-\subsection{Hallazgos del diagnóstico inicial y remediaciones implementadas}
+\subsection{HALLAZGOS DEL DIAGNÓSTICO INICIAL Y REMEDIACIONES IMPLEMENTADAS}
 
 La revisión inicial del prototipo permitió identificar las brechas resumidas en la Tabla~\ref{tab:plan}, sobre las cuales se ejecutó el plan de remediación que habilita la superación de las pruebas de la Tabla~\ref{tab:controles}.
 
