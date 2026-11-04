@@ -1,9 +1,11 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useProductos } from '../context/ProductosContext';
 import { useAuth } from '../context/AuthContext';
 import { SearchIcon, FlowerIcon } from '../components/Icons';
 
 export default function Catalogo() {
+  const navigate = useNavigate();
   const { getProductosActivos, categorias, loading } = useProductos();
   const { usuario } = useAuth();
   const [busqueda, setBusqueda] = useState('');
@@ -38,6 +40,13 @@ export default function Catalogo() {
 
   return (
     <div className="page">
+      {usuario && usuario.rol !== 'invitado' && usuario.rol !== 'cliente' && (
+        <div className="breadcrumb-bar">
+          <button className="breadcrumb-link" onClick={() => navigate('/dashboard')}>🏠 Dashboard</button>
+          <span>/</span>
+          <span>Catálogo de Productos</span>
+        </div>
+      )}
       <div className="page-header">
         <h1 className="page-title">Nuestro <span>Catálogo</span></h1>
         <span style={{ color: 'var(--texto-secundario)', fontSize: '0.82rem', fontWeight: 500 }}>

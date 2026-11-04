@@ -150,3 +150,21 @@ export const authLimiter = createRateLimiter({
     max: 10,
     message: 'Demasiados intentos fallidos. Bloqueo preventivo por 5 minutos para mitigar ataques de fuerza bruta.'
 });
+
+/**
+ * C-19 / R7.4: Middleware de Modo Restringido de Emergencia (Continuidad Operativa)
+ * Cuando MODO_EMERGENCIA=lectura, el catálogo público continúa operando en modo lectura,
+ * mientras las operaciones de mutación devuelven HTTP 503 Service Unavailable.
+ */
+export const emergencyModeMiddleware = (req, res, next) => {
+    const modo = (process.env.MODO_EMERGENCIA || '').toLowerCase().trim();
+    if (modo === 'lectura' || modo === 'true' || modo === '1') {
+        const metodosEscritura = ['POST', 'PUT', 'DELETE', 'PATCH'];
+        if (metodosEscritura.includes(req.method)) {
+            return res.status(503).json({
+                error: 'Sistema en Modo de Emergencia (Solo Lectura). Las operaciones de escritura están temporalmente suspendidas por contingencia.'
+            });
+        }
+    }
+    next();
+};

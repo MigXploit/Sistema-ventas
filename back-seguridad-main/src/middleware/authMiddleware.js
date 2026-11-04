@@ -21,6 +21,12 @@ export const verifyToken = async (req, res, next) => {
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
 
+        // Soporte para identidad efímera de invitado (sin fila en BD, bloqueada luego en isAdmin con 403)
+        if (decoded.rol === 'invitado') {
+            req.user = { ...decoded, rolBD: 'Invitado', activo: true };
+            return next();
+        }
+
         // C-05: Validar en tiempo real que el usuario siga existiendo y esté ACTIVO en la BD
         const { rows } = await pool.query(
             'SELECT activo, rol FROM usuario WHERE id_usuario = $1',
@@ -33,9 +39,18 @@ export const verifyToken = async (req, res, next) => {
 
         req.user = {
             ...decoded,
+            rol: mapRolToFrontend(rows[0].rol),
             rolBD: rows[0].rol,
             activo: rows[0].activo
         };
+
+        // C-21 / R8.3: Registrar cada acción ejecutada por la cuenta de emergencia break-glass
+        if ((decoded.email || '').toLowerCase() === 'emergencia@yasumi.com') {
+            try {
+                await registrarAcceso(req, decoded.id, `EMERGENCIA_USO: ${req.method} ${req.originalUrl}`);
+            } catch { /* continua sin bloquear */ }
+        }
+
         next();
     } catch (error) {
         return res.status(401).json({ error: 'Token inválido o expirado.' });
@@ -47,13 +62,11 @@ export const isAdmin = async (req, res, next) => {
         return next();
     }
 
-    // C-11: Registrar en auditoría intento de acceso no autorizado (403 ACCESO_DENEGADO)
-    if (req.user?.id) {
-        try {
-            await registrarAcceso(req, req.user.id, 'ACCESO_DENEGADO');
-        } catch (err) {
-            console.error('Error registrando auditoría ACCESO_DENEGADO:', err.message);
-        }
+    // C-11 y C-18: Registrar en auditoría intento de acceso no autorizado (403 ACCESO_DENEGADO)
+    try {
+        await registrarAcceso(req, req.user?.id || null, `ACCESO_DENEGADO: ${req.method} ${req.originalUrl} (rol: ${req.user?.rol || 'desconocido'})`);
+    } catch (err) {
+        console.error('Error registrando auditoría ACCESO_DENEGADO:', err.message);
     }
 
     return res.status(403).json({ error: 'Acceso denegado. Se requiere permisos de Administrador.' });

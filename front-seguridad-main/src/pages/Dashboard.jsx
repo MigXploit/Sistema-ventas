@@ -1,7 +1,7 @@
 import { useAuth } from '../context/AuthContext';
 import { useProductos } from '../context/ProductosContext';
 import { useNavigate } from 'react-router-dom';
-import { BouquetIcon, PlantIcon, SparkleIcon, GiftIcon, FlowerIcon } from '../components/Icons';
+import { BouquetIcon, PlantIcon, SparkleIcon, GiftIcon, FlowerIcon, CatalogIcon, ProductsIcon, ReportsIcon, UsersIcon } from '../components/Icons';
 
 const CATEGORIAS_DESTACADAS = [
   { nombre: 'Ramos', icon: BouquetIcon, descripcion: 'Diseños florales exclusivos', bg: '#FDF2F8' },
@@ -16,38 +16,85 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const stats = estadisticas();
   const productos = getProductosActivos().slice(0, 4);
+  const esAdmin = usuario?.rol === 'admin';
+
+  const accesosRapidos = [
+    {
+      titulo: 'Catálogo Público',
+      desc: 'Explorar arreglos, filtrar por categoría y consultar por WhatsApp',
+      ruta: '/catalogo',
+      icon: CatalogIcon,
+      bg: '#FDF2F8',
+      color: '#B91C5C',
+      visible: true
+    },
+    {
+      titulo: 'Gestión de Productos',
+      desc: 'Alta, edición de precios, stock y desactivación lógica',
+      ruta: '/productos',
+      icon: ProductsIcon,
+      bg: '#F0FDF4',
+      color: '#059669',
+      visible: esAdmin
+    },
+    {
+      titulo: 'Reportes y Bitácora',
+      desc: 'Estadísticas visuales, auditoría de eventos y exportación PDF',
+      ruta: '/reportes',
+      icon: ReportsIcon,
+      bg: '#FEFCE8',
+      color: '#CA8A04',
+      visible: esAdmin
+    },
+    {
+      titulo: 'Identidades y Roles (2FA)',
+      desc: 'Ciclo de vida de cuentas, suspensión y cambio de rol con 2FA',
+      ruta: '/usuarios',
+      icon: UsersIcon,
+      bg: '#EFF6FF',
+      color: '#2563EB',
+      visible: esAdmin
+    }
+  ].filter(a => a.visible);
 
   return (
     <div>
       {/* Hero */}
       <div className="hero">
-        <div style={{ position: 'relative', zIndex: 1 }}>
+        <div className="anim-fade-up" style={{ position: 'relative', zIndex: 1 }}>
           <div style={{
             fontSize: '0.7rem',
             letterSpacing: '3px',
             color: 'var(--rosa-suave)',
             textTransform: 'uppercase',
             marginBottom: '0.75rem',
-            fontWeight: 500
+            fontWeight: 600
           }}>
-            Panel de gestión
+            Panel de Gestión & Seguridad Activa
           </div>
           <h1 className="hero-title">
             Bienvenido, <em>{usuario?.nombre?.split(' ')[0]}</em>
           </h1>
           <p className="hero-subtitle">
-            Gestiona tu inventario de arreglos florales, plantas y sets de regalo.
+            Gestiona tu inventario de arreglos florales, catálogo comercial y controles de seguridad de Yasumi Venta.
           </p>
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
             <button className="btn btn-primary" onClick={() => navigate('/catalogo')}>
-              Ver Catálogo
+              Explorar Catálogo
             </button>
-            {usuario?.rol === 'admin' && (
-              <button className="btn btn-secondary"
-                style={{ background: 'transparent', color: 'white', borderColor: 'rgba(255,255,255,0.2)' }}
-                onClick={() => navigate('/productos')}>
-                Gestionar Productos
-              </button>
+            {esAdmin && (
+              <>
+                <button className="btn btn-secondary"
+                  style={{ background: 'rgba(255,255,255,0.08)', color: 'white', borderColor: 'rgba(255,255,255,0.22)' }}
+                  onClick={() => navigate('/productos')}>
+                  Gestionar Productos
+                </button>
+                <button className="btn btn-secondary"
+                  style={{ background: 'rgba(255,255,255,0.08)', color: 'white', borderColor: 'rgba(255,255,255,0.22)' }}
+                  onClick={() => navigate('/reportes')}>
+                  Bitácora & PDF
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -55,27 +102,52 @@ export default function Dashboard() {
 
       <div className="page">
         {/* Stats */}
-        <div className="stats-grid">
-          <div className="stat-card">
+        <div className="stats-grid anim-fade-up anim-delay-1">
+          <div className="stat-card" onClick={() => navigate('/catalogo')} style={{ cursor: 'pointer' }}>
             <div className="stat-value">{stats.activos}</div>
             <div className="stat-label">Productos Activos</div>
           </div>
-          <div className="stat-card">
+          <div className="stat-card" onClick={() => esAdmin && navigate('/reportes')} style={{ cursor: esAdmin ? 'pointer' : 'default' }}>
             <div className="stat-value" style={{ color: 'var(--dorado)', fontSize: '1.5rem' }}>
               Bs. {stats.valorInventario.toLocaleString()}
             </div>
             <div className="stat-label">Valor del Inventario</div>
           </div>
-          <div className="stat-card">
+          <div className="stat-card" onClick={() => navigate('/catalogo')} style={{ cursor: 'pointer' }}>
             <div className="stat-value" style={{ color: 'var(--verde-hoja)' }}>
               {Object.keys(stats.porCategoria).length}
             </div>
             <div className="stat-label">Categorías</div>
           </div>
-          <div className="stat-card">
+          <div className="stat-card" onClick={() => esAdmin && navigate('/productos')} style={{ cursor: esAdmin ? 'pointer' : 'default' }}>
             <div className="stat-value" style={{ color: '#94A3B8' }}>{stats.inactivos}</div>
-            <div className="stat-label">Inactivos</div>
+            <div className="stat-label">Inactivos (Baja Lógica)</div>
           </div>
+        </div>
+
+        {/* Accesos Rápidos de Navegación */}
+        <div className="page-header anim-fade-up anim-delay-2" style={{ marginBottom: '0.85rem' }}>
+          <h2 className="page-title">Navegación <span>Rápida</span></h2>
+          <span style={{ fontSize: '0.78rem', color: 'var(--texto-secundario)' }}>
+            Selecciona cualquier módulo para ir directamente
+          </span>
+        </div>
+        <div className="quick-nav-grid anim-fade-up anim-delay-2">
+          {accesosRapidos.map((item) => (
+            <div key={item.ruta} className="quick-nav-card" onClick={() => navigate(item.ruta)}>
+              <div className="quick-nav-icon" style={{ background: item.bg, color: item.color }}>
+                <item.icon size={22} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--texto)', marginBottom: 2 }}>
+                  {item.titulo} →
+                </div>
+                <div style={{ fontSize: '0.74rem', color: 'var(--texto-secundario)', lineHeight: 1.35 }}>
+                  {item.desc}
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* Categorías */}

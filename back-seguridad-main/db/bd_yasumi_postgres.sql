@@ -322,9 +322,22 @@ INSERT INTO producto_fecha (id_producto, id_fecha, precio_especial, destacado) V
 (1, 1, 420.00, TRUE);
 
 -- --------------------------------------------------------
--- C-13: Inmutabilidad estricta (Append-Only) para logs de acceso y auditoría
+-- C-13 y Parte 1: Ciclo de vida de identidades e inmutabilidad estricta (Append-Only) para logs de auditoría
 -- Impide cualquier operación UPDATE o DELETE por parte del usuario de la aplicación
 -- --------------------------------------------------------
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'estado_identidad') THEN
+        CREATE TYPE estado_identidad AS ENUM ('activa', 'suspendida', 'revocada');
+    END IF;
+END$$;
+
+ALTER TABLE usuario
+    ADD COLUMN IF NOT EXISTS estado             estado_identidad NOT NULL DEFAULT 'activa',
+    ADD COLUMN IF NOT EXISTS estado_motivo      VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS estado_cambiado_en TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS token_version      INTEGER NOT NULL DEFAULT 0;
+
 CREATE OR REPLACE VIEW log_auditoria AS SELECT * FROM log_acceso;
 
 CREATE OR REPLACE FUNCTION prevenir_modificacion_logs()

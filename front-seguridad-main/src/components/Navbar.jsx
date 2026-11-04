@@ -20,16 +20,24 @@ export default function Navbar() {
 
   const cerrarMenu = () => setMenuAbierto(false);
 
+  const rutaInicio = (usuario?.rol === 'invitado' || usuario?.rol === 'cliente') ? '/catalogo' : '/dashboard';
+
   return (
     <nav className="navbar">
-      <div className="navbar-left">
-        <NavLink to="/dashboard" className="navbar-brand" onClick={cerrarMenu} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <FlowerIcon size={32} />
+      <div className="navbar-left" style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+        <NavLink to={rutaInicio} className="navbar-brand" onClick={cerrarMenu} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div className="anim-float" style={{ display: 'flex', alignItems: 'center' }}>
+            <FlowerIcon size={32} />
+          </div>
           <div>
             <span className="navbar-title">Yasumi</span>
             <span className="navbar-subtitle">Florería & Regalos</span>
           </div>
         </NavLink>
+        <span className="security-pill" title="Conexión autenticada con controles RBAC + ABAC y auditoría activa">
+          <span className="security-dot" />
+          Seguridad Activa
+        </span>
       </div>
 
       {/* Menú de escritorio */}

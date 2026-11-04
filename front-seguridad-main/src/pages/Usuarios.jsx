@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth, esEmail, evaluarFortaleza } from '../context/AuthContext';
 import api from '../api/axiosConfig';
 
@@ -22,9 +23,11 @@ function BarraFortaleza({ nivel }) {
 }
 
 export default function Usuarios() {
+  const navigate = useNavigate();
   const { usuario: usuarioActual, registrarUsuario } = useAuth();
   const [usuarios, setUsuarios] = useState([]);
   const [filtro, setFiltro] = useState('');
+  const [filtroRol, setFiltroRol] = useState('todos');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [alertaExito, setAlertaExito] = useState('');
@@ -36,10 +39,11 @@ export default function Usuarios() {
   const [mensajeGuardar, setMensajeGuardar] = useState('');
   const [guardando, setGuardando] = useState(false);
 
-  // Modal cambio de rol (C-12: Segundo factor de autenticación 2FA)
+  // Modal cambio de rol (C-12: Segundo factor de autenticación 2FA y motivo auditado)
   const [modalRolAbierto, setModalRolAbierto] = useState(false);
   const [usuarioEditarRol, setUsuarioEditarRol] = useState(null);
   const [nuevoRol, setNuevoRol] = useState('vendedor');
+  const [motivoRol, setMotivoRol] = useState('');
   const [codigo2fa, setCodigo2fa] = useState('');
   const [guardandoRol, setGuardandoRol] = useState(false);
   const [errorRol, setErrorRol] = useState('');
@@ -140,6 +144,7 @@ export default function Usuarios() {
   const abrirCambioRol = (u) => {
     setUsuarioEditarRol(u);
     setNuevoRol(u.rol || 'vendedor');
+    setMotivoRol('');
     setCodigo2fa('');
     setErrorRol('');
     setModalRolAbierto(true);
@@ -148,6 +153,7 @@ export default function Usuarios() {
   const cerrarModalRol = () => {
     setModalRolAbierto(false);
     setUsuarioEditarRol(null);
+    setMotivoRol('');
     setCodigo2fa('');
     setErrorRol('');
   };
@@ -160,7 +166,7 @@ export default function Usuarios() {
     try {
       const res = await api.put(
         `/usuarios/${usuarioEditarRol.id}/rol`,
-        { nuevoRol, codigo2fa },
+        { nuevoRol, codigo2fa, motivo: motivoRol },
         { headers: { 'X-2FA-Token': codigo2fa } }
       );
 
@@ -169,7 +175,7 @@ export default function Usuarios() {
           prev.map(u => u.id === usuarioEditarRol.id ? { ...u, rol: res.data.nuevoRol } : u)
         );
         cerrarModalRol();
-        setAlertaExito(`Rol de ${usuarioEditarRol.nombre} actualizado a ${res.data.nuevoRol} con éxito (2FA validado)`);
+        setAlertaExito(`Rol de ${usuarioEditarRol.nombre} actualizado a ${res.data.nuevoRol} con éxito (2FA validado y registrado en bitácora)`);
         setTimeout(() => setAlertaExito(''), 4000);
       }
     } catch (err) {
@@ -185,18 +191,27 @@ export default function Usuarios() {
     if (errores[k]) setErrores((e) => { const n = { ...e }; delete n[k]; return n; });
   };
 
-  const usuariosFiltrados = usuarios.filter(u =>
-    u.nombre.toLowerCase().includes(filtro.toLowerCase()) ||
-    u.email.toLowerCase().includes(filtro.toLowerCase())
-  );
+  const usuariosFiltrados = usuarios.filter(u => {
+    const matchTexto =
+      u.nombre.toLowerCase().includes(filtro.toLowerCase()) ||
+      u.email.toLowerCase().includes(filtro.toLowerCase());
+    const matchRol = filtroRol === 'todos' || u.rol === filtroRol;
+    return matchTexto && matchRol;
+  });
 
   return (
     <div className="page">
+      <div className="breadcrumb-bar">
+        <button className="breadcrumb-link" onClick={() => navigate('/dashboard')}>🏠 Dashboard</button>
+        <span>/</span>
+        <span>Gestión de Usuarios e Identidades</span>
+      </div>
+
       <div className="page-header" style={{ flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 className="page-title">Gestión de <span>Usuarios</span></h1>
           <p style={{ fontSize: '0.82rem', color: 'var(--texto-secundario)', marginTop: 2 }}>
-            Control de identidades, ciclo de vida, privilegios y auditoría
+            Control de identidades, ciclo de vida (activa / suspendida), privilegios con 2FA y auditoría
           </p>
         </div>
         <button className="btn btn-primary" onClick={() => setModalAbierto(true)}>+ Nuevo Usuario</button>
@@ -205,9 +220,9 @@ export default function Usuarios() {
       {alertaExito && <div className="alert alert-success">{alertaExito}</div>}
       {error && <div className="alert alert-error">{error}</div>}
 
-      {/* Buscador de usuarios */}
-      <div className="search-bar" style={{ maxWidth: 420 }}>
-        <div className="search-wrapper">
+      {/* Buscador y filtros por rol */}
+      <div className="search-bar">
+        <div className="search-wrapper" style={{ maxWidth: 400 }}>
           <span className="search-icon">🔍</span>
           <input
             type="text"
@@ -216,6 +231,22 @@ export default function Usuarios() {
             value={filtro}
             onChange={(e) => setFiltro(e.target.value)}
           />
+        </div>
+        <div className="category-pills" style={{ marginBottom: 0 }}>
+          {[
+            { id: 'todos', label: 'Todos' },
+            { id: 'admin', label: '🛡️ Administradores' },
+            { id: 'vendedor', label: '💼 Vendedores' },
+            { id: 'cliente', label: '👤 Clientes' },
+          ].map((r) => (
+            <button
+              key={r.id}
+              className={`pill ${filtroRol === r.id ? 'active' : ''}`}
+              onClick={() => setFiltroRol(r.id)}
+            >
+              {r.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -386,10 +417,39 @@ export default function Usuarios() {
               </select>
             </div>
 
+            <div className="form-group">
+              <label className="form-label">Motivo / Justificación de Auditoría</label>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Ej. Promoción a encargado de sucursal / Reasignación de funciones"
+                value={motivoRol}
+                onChange={(e) => setMotivoRol(e.target.value)}
+              />
+            </div>
+
             <div className="form-group" style={{ background: '#F8FAFC', padding: '12px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
-              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span>🔒 Token de Segundo Factor (2FA) *</span>
-              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
+                  <span>🔒 Token de Segundo Factor (2FA) *</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setCodigo2fa('2FA-AUTH-OK')}
+                  style={{
+                    background: 'var(--rosa-palido)',
+                    color: 'var(--rosa-profundo)',
+                    border: '1px solid var(--rosa-suave)',
+                    borderRadius: 6,
+                    padding: '2px 8px',
+                    fontSize: '0.68rem',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Autocompletar Demo (2FA-AUTH-OK)
+                </button>
+              </div>
               <input
                 type="text"
                 className="form-control"
@@ -398,7 +458,7 @@ export default function Usuarios() {
                 onChange={(e) => setCodigo2fa(e.target.value)}
               />
               <div style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '6px' }}>
-                <em>Control C-12:</em> Operación de alto riesgo. Requiere 2FA mandatorio. Sin token o al modificar su propio rol, la solicitud es rechazada (HTTP 403).
+                <em>Control C-12:</em> Operación de alto riesgo. Requiere 2FA mandatorio y deja rastro en <code>ROL_CAMBIO</code>. Sin token o al modificar su propio rol, la solicitud es rechazada (HTTP 403).
               </div>
             </div>
 

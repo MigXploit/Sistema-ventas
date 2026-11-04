@@ -4,7 +4,7 @@ import cors from 'cors';
 import { pool } from './src/config/db.js';
 
 // Middlewares de seguridad avanzados (Alineados al catálogo de ciberdefensa)
-import { securityHeaders, globalLimiter, csrfProtection } from './src/middleware/securityMiddleware.js';
+import { securityHeaders, globalLimiter, csrfProtection, emergencyModeMiddleware } from './src/middleware/securityMiddleware.js';
 import { sanitizePayload } from './src/middleware/sanitizeMiddleware.js';
 
 // Importación de rutas
@@ -57,6 +57,9 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // 7. Sanitización automática de payloads (Anti-XSS y Anti-Code Injection)
 app.use(sanitizePayload);
+
+// 7.5. Modo restringido de emergencia (C-19 / R7.4)
+app.use(emergencyModeMiddleware);
 
 // 8. Registro de Rutas
 app.use('/api/auth', authRoutes);

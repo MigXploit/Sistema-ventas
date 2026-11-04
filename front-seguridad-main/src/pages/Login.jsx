@@ -176,7 +176,7 @@ export default function Login() {
         
         {/* Logo */}
         <div className="login-logo">
-          <div className="login-logo-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.5rem' }}>
+          <div className="login-logo-icon anim-float" style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.5rem' }}>
             <FlowerIcon size={48} />
           </div>
           <div className="login-title">Yasumi</div>

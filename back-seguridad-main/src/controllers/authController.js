@@ -123,11 +123,11 @@ export const login = async (req, res) => {
 
         const user = rows[0];
 
-        // 3. Verificar si el usuario está activo (C-05)
+        // 3. Verificar si el usuario está activo (C-05 y R2.8: mensaje uniforme 401 para no revelar existencia)
         if (!user.activo) {
             await bcrypt.compare(password || '', DUMMY_HASH);
             await registrarAcceso(req, user.id_persona, 'LOGIN_BLOQUEADO_INACTIVO');
-            return res.status(403).json({ error: 'La cuenta se encuentra inactiva. Contacte al administrador.' });
+            return res.status(401).json({ error: 'Credenciales inválidas. Por favor verifique su correo y contraseña.' });
         }
 
         // 4. Contrastar contraseña
@@ -150,20 +150,25 @@ export const login = async (req, res) => {
         const rolFrontend = mapRolToFrontend(user.rol);
         const nombre = nombreCompleto(user);
 
-        // 6. Generar token JWT con firma criptográfica y expiración
+        // 6. Generar token JWT con firma criptográfica, versión y expiración
         const token = jwt.sign(
             {
                 id:     user.id_persona,
                 nombre,
                 email:  user.email,
-                rol:    rolFrontend
+                rol:    rolFrontend,
+                tv:     0
             },
             JWT_SECRET,
             { expiresIn: JWT_EXPIRES_IN }
         );
 
-        // 7. Registrar LOG de auditoría de ingreso exitoso
-        await registrarAcceso(req, user.id_persona, 'INGRESO');
+        // 7. Registrar LOG de auditoría de ingreso exitoso (y detectar cuenta de emergencia C-21 / R8.3)
+        if (emailLimpio === 'emergencia@yasumi.com') {
+            await registrarAcceso(req, user.id_persona, 'EMERGENCIA_USO: Inicio de sesión break-glass');
+        } else {
+            await registrarAcceso(req, user.id_persona, 'INGRESO');
+        }
 
         // 8. Actualizar marca temporal de último acceso
         await pool.query(
@@ -224,7 +229,7 @@ export const register = async (req, res) => {
             }
         }
 
-        await crearUsuarioCompleto({
+        const nuevoId = await crearUsuarioCompleto({
             nombre: (nombre || '').trim(),
             paterno: paterno ? paterno.trim() : null,
             materno: materno ? materno.trim() : null,
@@ -232,6 +237,9 @@ export const register = async (req, res) => {
             passwordHash,
             rol: rolBD
         });
+
+        // R1.4: Registrar alta de identidad en la bitácora de auditoría
+        await registrarAcceso(req, nuevoId || null, `IDENTIDAD_ALTA: Registro con rol ${rolBD}`);
 
         res.json({
             ok: true,
@@ -257,7 +265,7 @@ export const logout = async (req, res) => {
             revokeToken(token);
         }
 
-        await registrarAcceso(req, req.user.id, 'SALIDA');
+        await registrarAcceso(req, req.user.id || null, 'SALIDA');
 
         res.json({ ok: true, message: 'Sesión cerrada y token revocado exitosamente' });
     } catch (error) {
@@ -266,28 +274,13 @@ export const logout = async (req, res) => {
     }
 };
 
-// Obtener o crear el usuario invitado en la BD
-const obtenerOCrearInvitado = async () => {
-    const idExistente = await buscarIdPorEmail('invitado@yasumi.com');
-    if (idExistente) return idExistente;
-
-    return crearUsuarioCompleto({
-        nombre: 'Invitado',
-        email: 'invitado@yasumi.com',
-        passwordHash: await bcrypt.hash('invitado_password_2026', 10),
-        rol: 'Cliente'
-    });
-};
-
-// Login como invitado (Sesión temporal con alcance mínimo)
+// R1.6 y C-22: Login como invitado mediante identidad efímera de 2 horas (sin cuenta ni contraseña fija en BD)
 export const loginInvitado = async (req, res) => {
     try {
-        const idInvitado = await obtenerOCrearInvitado();
-
-        await registrarAcceso(req, idInvitado, 'INGRESO_INVITADO');
+        await registrarAcceso(req, null, 'INGRESO_INVITADO');
 
         const token = jwt.sign(
-            { id: idInvitado, nombre: 'Invitado', email: 'invitado@yasumi.com', rol: 'invitado' },
+            { id: null, nombre: 'Invitado', email: 'invitado@yasumi.com', rol: 'invitado', efimero: true },
             JWT_SECRET,
             { expiresIn: '2h' }
         );

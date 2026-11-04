@@ -1,9 +1,11 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useProductos } from '../context/ProductosContext';
 import { SearchIcon, FlowerIcon } from '../components/Icons';
 import ProductoModal from '../components/ProductoModal';
 
 export default function Productos() {
+  const navigate = useNavigate();
   const { getTodos, categorias, eliminarProducto, reactivarProducto, loading } = useProductos();
   const [busqueda, setBusqueda] = useState('');
   const [filtroCategoria, setFiltroCategoria] = useState('Todos');
@@ -35,6 +37,11 @@ export default function Productos() {
 
   return (
     <div className="page">
+      <div className="breadcrumb-bar">
+        <button className="breadcrumb-link" onClick={() => navigate('/dashboard')}>🏠 Dashboard</button>
+        <span>/</span>
+        <span>Gestión de Productos e Inventario</span>
+      </div>
       <div className="page-header">
         <h1 className="page-title">Gestión de <span>Productos</span></h1>
         <button className="btn btn-primary" onClick={abrirNuevo}>+ Nuevo Producto</button>
