@@ -352,4 +352,9 @@ CREATE TRIGGER trg_proteger_log_acceso
 BEFORE UPDATE OR DELETE ON log_acceso
 FOR EACH ROW EXECUTE FUNCTION prevenir_modificacion_logs();
 
+DROP TRIGGER IF EXISTS trg_proteger_log_acceso_truncate ON log_acceso;
+CREATE TRIGGER trg_proteger_log_acceso_truncate
+BEFORE TRUNCATE ON log_acceso
+FOR EACH STATEMENT EXECUTE FUNCTION prevenir_modificacion_logs();
+
 COMMIT;

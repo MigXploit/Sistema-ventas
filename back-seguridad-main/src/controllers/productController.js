@@ -2,6 +2,7 @@ import { pool } from '../config/db.js';
 import fs from 'fs';
 import path from 'path';
 import { cleanCategoryName, getFrontendPublicDir, ensureDir } from '../utils/files.js';
+import { cifrarBidireccionalASCII, descifrarBidireccionalASCII } from '../utils/cryptoAssets.js';
 
 // MIME types seguros permitidos
 const ALLOWED_MIME_TYPES = {
@@ -81,9 +82,10 @@ const resolverImagen = async ({ imagen_url, emoji, imagen_base64, imagen_nombre,
     return emoji || '🌸';
 };
 
+// Cifrado bidireccional basado en ASCII (+5) para los datos visibles (título y descripción) al guardar en BD
 const valoresProducto = async (body) => [
-    body.nombre ? body.nombre.trim() : '',
-    body.descripcion ? body.descripcion.trim() : null,
+    body.nombre ? cifrarBidireccionalASCII(body.nombre.trim()) : '',
+    body.descripcion ? cifrarBidireccionalASCII(body.descripcion.trim()) : null,
     parseInt(body.id_categoria, 10),
     body.tipo || 'Estándar',
     await resolverImagen(body),
@@ -92,7 +94,7 @@ const valoresProducto = async (body) => [
     parseInt(body.stock_minimo ?? 1, 10)
 ];
 
-// Obtener todos los productos
+// Obtener todos los productos (Descifra en el backend los datos visibles con desplazamiento ASCII -5)
 export const getProductos = async (req, res) => {
     try {
         const { rows } = await pool.query(
@@ -106,19 +108,22 @@ export const getProductos = async (req, res) => {
 
         const productos = rows.map(p => {
             const esUrl = p.imagen_url && (p.imagen_url.startsWith('http') || p.imagen_url.startsWith('/'));
+            const nombreDescifrado = descifrarBidireccionalASCII(p.nombre);
+            const descripcionDescifrada = descifrarBidireccionalASCII(p.descripcion);
             return {
-                id:           p.id,
-                nombre:       p.nombre,
-                categoria:    p.categoria,
-                id_categoria: p.id_categoria,
-                precio:       Number(p.precio),
-                stock:        p.stock,
-                stock_minimo: p.stock_minimo,
-                descripcion:  p.descripcion,
-                tipo:         p.tipo,
-                imagen_url:   p.imagen_url,
-                emoji:        esUrl ? '🌸' : (p.imagen_url || '🌸'),
-                activo:       p.activo
+                id:                   p.id,
+                nombre:               nombreDescifrado,
+                nombre_cifrado_ascii: cifrarBidireccionalASCII(nombreDescifrado),
+                categoria:            descifrarBidireccionalASCII(p.categoria),
+                id_categoria:         p.id_categoria,
+                precio:               Number(p.precio),
+                stock:                p.stock,
+                stock_minimo:         p.stock_minimo,
+                descripcion:          descripcionDescifrada,
+                tipo:                 p.tipo,
+                imagen_url:           p.imagen_url,
+                emoji:                esUrl ? '🌸' : (p.imagen_url || '🌸'),
+                activo:               p.activo
             };
         });
 

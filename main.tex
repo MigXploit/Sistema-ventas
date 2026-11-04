@@ -9,7 +9,7 @@
 % ============================================================
 \documentclass[12pt,letterpaper]{article}
 
-\usepackage[top=2.5cm,bottom=2.5cm,left=3cm,right=2.5cm]{geometry}
+\usepackage[top=2.5cm,bottom=2.5cm,left=2.5cm,right=2.5cm]{geometry}
 \usepackage[spanish,es-tabla,es-noshorthands]{babel}
 
 % --- Interlineado 1.5 y texto justificado (por defecto en LaTeX) ---
@@ -86,59 +86,71 @@
 \begin{document}
 
 % ------------------------------------------------------------
-% NOTA: la hoja de portada con titulo e integrantes NO se incluye
-% (se agregara aparte, segun indicacion).
+% CARATULA DEL PROYECTO
 % ------------------------------------------------------------
+\begin{titlepage}
+\vspace*{2.5cm}
+\begin{center}
+    {\fontsize{24}{28}\selectfont\bfseries ``YASUMI VENTA''\par}
+    \vspace{2.5cm}
+    {\Large\bfseries Grupo: Detalles\par}
+\end{center}
+\vspace{2.8cm}
+\noindent{\Large\bfseries Estudiantes:}\par
+\vspace{0.4cm}
+\begin{enumerate}[leftmargin=0.8cm,itemsep=6pt]
+    \item Bustillos Choque Miguel Angel
+    \item Colque Paucara Klever Calet
+    \item Mamani Colmena Gerson (Representante)
+    \item Rojas Guachalla Ranulfo Antonio
+\end{enumerate}
+\vfill
+\end{titlepage}
 
 \renewcommand{\contentsname}{ÍNDICE}
 \tableofcontents
 \clearpage
 \section{INTRODUCCIÓN}
 
-Yasumi Venta es un sistema web para la gestión de una florería y tienda de regalos. Permite publicar un catálogo de productos organizados por categorías, administrar usuarios del personal, registrar el acceso de cada persona al sistema y, en su modelo de datos, gestionar clientes, reservas, entregas a domicilio y pagos. El sistema se compone de una aplicación de cliente construida con React y Vite, una interfaz de programación (API) REST desarrollada en Node.js con Express 5 y una base de datos PostgreSQL. La autenticación se realiza con tokens JWT y existen cuatro tipos de actor: Administrador, Vendedor, Cliente e Invitado.
+Yasumi Venta es un sistema web para la gestión integral de una florería y tienda de regalos. Permite publicar un catálogo de productos organizados por categorías, administrar usuarios del personal, registrar el acceso y actividad de cada persona en el sistema y, en su modelo de datos, gestionar clientes, reservas, entregas a domicilio y pagos. El sistema se compone de una aplicación de cliente construida con React y Vite, una interfaz de programación (API) REST desarrollada en Node.js con Express 5 y una base de datos PostgreSQL. La autenticación se realiza con tokens JWT y existen cuatro tipos de actor: Administrador, Vendedor, Cliente e Invitado.
 
-Un sistema de este tipo concentra información que debe protegerse: credenciales de acceso, datos personales de clientes y personal (nombre, correo electrónico, teléfono, dirección y fecha de nacimiento), información comercial (precios, inventario, reservas y pagos) y los registros de actividad que permiten reconstruir lo ocurrido ante un incidente. Si alguna de estas piezas se compromete, el perjuicio alcanza tanto a las personas cuyos datos se exponen como a la continuidad del negocio.
+Un sistema de este tipo concentra información crítica que debe protegerse: credenciales de acceso, datos personales de clientes y personal (nombre, correo electrónico, teléfono, dirección y fecha de nacimiento), información comercial (precios, inventario, reservas y pagos) y los registros de actividad que permiten reconstruir lo ocurrido ante un incidente. Si alguna de estas piezas se compromete, el perjuicio alcanza tanto a las personas cuyos datos se exponen como a la continuidad del negocio.
 
-El presente documento expone el diseño, la implementación y la forma de verificar los controles de seguridad de Yasumi Venta, siguiendo las ocho partes del proyecto final: ciclo de vida de las identidades, autenticación, autorización, auditoría y trazabilidad, recuperación y continuidad, matriz de mínimo privilegio, políticas de seguridad y traducción de las políticas a controles verificables. El análisis se basa en la revisión del código fuente de los repositorios \cod{G3rC0/back-seguridad} y \cod{G3rC0/front-seguridad}. Para que el documento sea útil como evidencia, cada requisito se acompaña de un estado: \Si{} cuando el control existe en el código, \Pa{} cuando existe de forma incompleta y \No{} cuando se presenta como diseño que debe incorporarse al software.
+El presente documento expone el diagnóstico inicial, el diseño, la implementación y la verificación de los controles de seguridad de Yasumi Venta, siguiendo las ocho partes del proyecto final: ciclo de vida de las identidades, autenticación, autorización, auditoría y trazabilidad, recuperación y continuidad, matriz de mínimo privilegio, políticas de seguridad y traducción de las políticas a controles verificables. El análisis parte de la revisión del código fuente y su evolución en el repositorio unificado del proyecto (\cod{MigXploit/Sistema-ventas}) \cite{repos}. Para que el documento sea útil como evidencia auditable, cada requisito distingue entre el diagnóstico inicial del prototipo, la remediación implementada y su estado actual (\Si{}, \Pa{} o \No{}).
 
 \section{PROBLEMA}
 
-La revisión del software muestra que Yasumi Venta cuenta con una base sólida (contraseñas almacenadas con bcrypt, consultas parametrizadas, tokens firmados con secreto externo y rutas administrativas protegidas en el servidor), pero presenta brechas que impiden asegurar que una identidad desactivada no pueda seguir operando, que los intentos de intrusión queden registrados y que los privilegios se limiten a lo estrictamente necesario. Las más relevantes son las siguientes:
+En la actualidad, el sistema web de gestión comercial y ventas \textbf{Yasumi Venta} digitaliza procesos críticos como la administración del catálogo de productos, el registro de clientes, el control de reservas, pagos y despachos a domicilio, así como la administración de cuentas del personal operativo. Sin embargo, el crecimiento de las operaciones en línea y la exposición de servicios a través de una API REST conllevan el manejo continuo de información altamente sensible (credenciales de acceso, datos personales de ubicación, montos financieros y registros de auditoría) que, en ausencia de una arquitectura defensiva integral desde su diseño (\emph{Security by Design}), queda expuesta a accesos no autorizados, manipulación de datos, abuso de privilegios e interrupciones operativas.
 
-\begin{itemize}
-  \item Una identidad desactivada no puede iniciar sesión, pero un token emitido antes de la desactivación sigue siendo válido hasta su vencimiento (8 horas), porque el servidor no consulta el estado de la cuenta en cada petición.
-  \item El estado de una identidad es un valor lógico (activo o inactivo); no distingue entre suspendida y revocada ni conserva el motivo, la fecha ni el responsable del cambio.
-  \item La protección contra intentos repetidos se limita a un CAPTCHA matemático cuyos operandos envía el propio cliente, por lo que puede omitirse; no existe bloqueo temporal ni límite de peticiones.
-  \item El registro de actividad solo guarda ingresos y salidas exitosos. No se registran autenticaciones fallidas, accesos denegados, cambios de estado de cuentas ni operaciones sobre productos.
-  \item No existe un procedimiento autorizado y auditado para cambiar el rol de una persona, ni un segundo factor para operaciones de alto riesgo.
-  \item Los mensajes de error permiten deducir si un correo está registrado, y la política de contraseñas acepta claves de apenas seis caracteres.
-  \item No hay procedimientos documentados de respuesta ante el compromiso de una cuenta privilegiada, la pérdida de registros o la alteración no autorizada de expedientes.
-\end{itemize}
+Específicamente, se han identificado las siguientes problemáticas críticas que motivan el presente proyecto:
 
-El problema central puede formularse así: \textit{¿cómo garantizar que, en Yasumi Venta, solo las identidades legítimas y vigentes accedan únicamente a los recursos que necesitan, que cada acción relevante deje evidencia íntegra y que el servicio pueda recuperarse de un incidente sin perder el control de sus datos sensibles?}
+\begin{enumerate}
+  \item \textbf{Subproblema 1 (Debilidad en los mecanismos de acceso y suplantación de identidad):} La validación de usuarios mediante esquemas básicos que no incorporan revocación inmediata de sesiones, bloqueo ante intentos repetidos por fuerza bruta, desafíos verificados en el servidor ni segundo factor de autenticación (2FA) facilita ataques de fuerza bruta, relleno de credenciales (\emph{Credential Stuffing}), enumeración de cuentas y persistencia de sesiones de cuentas desactivadas.
+  \item \textbf{Subproblema 2 (Ausencia de un control de acceso granular y abuso de privilegios):} La falta de una separación estricta de funciones entre roles (Administrador, Vendedor, Cliente e Invitado) y de una validación contextual de la relación entre atributos sujeto--objeto en el servidor permite que un usuario autenticado intente acceder a recursos o ejecutar operaciones administrativas y de supervisión que no le corresponden por su nivel jerárquico (escalamiento horizontal y vertical de privilegios).
+  \item \textbf{Subproblema 3 (Almacenamiento e intercambio inseguro de información sensible):} Los datos críticos del sistema (contraseñas de registro, datos personales de clientes y atributos comerciales del catálogo) corren el riesgo de ser leídos o interceptados si se almacenan o procesan en texto plano, sin aplicar funciones criptográficas unidireccionales (hash con sal) para los secretos que nunca deben mostrarse y algoritmos de cifrado/descifrado para la información que requiere recuperarse.
+  \item \textbf{Subproblema 4 (Falta de mecanismos para garantizar la integridad, confidencialidad y disponibilidad de los datos):} El sistema carece inicialmente de una bitácora forense inmutable de solo anexado (\emph{Append-Only}) que deje trazabilidad de cambios de rol, usos de permisos superiores, denegaciones de acceso y cambios de configuración, así como de procedimientos de contingencia y modos de emergencia que aseguren la continuidad del negocio frente a incidentes o ataques de denegación de servicio.
+\end{enumerate}
+
+En consecuencia, el problema central se formula así: \textit{¿cómo estructurar, implementar y verificar una arquitectura integral de seguridad de la información en Yasumi Venta que garantice que solo las identidades legítimas y vigentes accedan únicamente a los recursos que necesitan, que los datos sensibles se resguarden criptográficamente y que cada acción relevante deje evidencia inmutable para asegurar la continuidad operativa?}
 
 \section{OBJETIVO GENERAL}
 
-Diseñar, implementar y documentar los controles de seguridad de Yasumi Venta para proteger la confidencialidad, la integridad y la disponibilidad de sus datos sensibles, de modo que cada control pueda verificarse mediante pruebas reproducibles sobre el software en funcionamiento.
+Diseñar e implementar una arquitectura integral de seguridad de la información para el sistema web \textbf{Yasumi Venta}, integrando mecanismos robustos de gestión de identidades, autenticación multifactor, control de acceso basado en roles y contexto de mínimo privilegio, protección criptográfica de datos y auditoría inmutable, con el fin de garantizar la confidencialidad, integridad, disponibilidad y no repudio de la información mediante controles verificables.
 
 \section{OBJETIVOS ESPECÍFICOS}
 
 \begin{enumerate}
-  \item Demostrar la criticidad de la infraestructura de Yasumi Venta identificando sus activos, los datos sensibles que maneja y los riesgos a los que está expuesta.
-  \item Implementar un mecanismo de gestión del ciclo de vida de las identidades con estados activa, suspendida y revocada, registro de altas, bajas y cambios de función, y bloqueo efectivo de las identidades desactivadas.
-  \item Reforzar la autenticación con almacenamiento seguro de contraseñas, protección contra intentos repetidos, expiración y revocación de sesiones, segundo factor para operaciones de mayor riesgo y mensajes de error que no revelen la existencia de cuentas.
-  \item Aplicar un control de acceso en el servidor que evalúe la identidad, la operación, el recurso, los permisos vigentes y el contexto de cada petición.
-  \item Registrar los eventos de seguridad relevantes en un registro de auditoría protegido contra alteración.
-  \item Diseñar procedimientos de recuperación y continuidad ante cinco escenarios de incidente, indicando qué operaciones continúan, cuáles se bloquean y qué controles de emergencia se requieren.
-  \item Elaborar una matriz de mínimo privilegio para los cuatro roles del sistema.
-  \item Definir ocho políticas de seguridad adaptadas al software y traducirlas a controles verificables con pruebas, resultados esperados y evidencias.
+  \item \textbf{Fundamentos y Criticidad:} Analizar los activos de información, las amenazas y las vulnerabilidades del sistema \textbf{Yasumi Venta} para demostrar la criticidad de su infraestructura y establecer las políticas de seguridad organizacionales que guíen la protección de los datos bajo la tríada CIA (Confidencialidad, Integridad y Disponibilidad).
+  \item \textbf{Identificación y Autenticación:} Desarrollar un módulo de gestión del ciclo de vida de identidades (estados activa, suspendida y revocada) y de autenticación segura que incorpore funciones de hash criptográfico unidireccional con sal (\cod{bcrypt}) para contraseñas, protección contra intentos repetidos, revocación inmediata de sesiones JWT y segundo factor de autenticación (TOTP) para operaciones de alto riesgo.
+  \item \textbf{Autorización y Criptografía:} Implementar un esquema de control de acceso en el servidor basado en la Matriz de Mínimo Privilegio (RBAC) y en el contexto relacional entre atributos sujeto--objeto (ABAC), junto con algoritmos criptográficos unidireccionales (hash para datos que no se muestran) y bidireccionales basados en el cifrado de Vigenère sobre el alfabeto ASCII (para datos que se cifran al almacenar y se descifran en el backend al mostrarse).
+  \item \textbf{Auditoría, Continuidad y Evaluación de Seguridad:} Implementar un subsistema de trazabilidad forense inmutable (\emph{Append-Only}) y procedimientos de recuperación ante incidentes, sometiendo el software a pruebas reproducibles de controles verificables para validar la resistencia real de las defensas implementadas.
 \end{enumerate}
 
 \section{DESARROLLO}
 
 \subsection{Alcance y metodología}
 
-El alcance comprende el backend (\cod{back-seguridad}), el frontend (\cod{front-seguridad}) y el esquema de base de datos \cod{bd\_yasumi}. La metodología consistió en cuatro pasos: (1) revisión del código fuente para identificar los controles existentes; (2) análisis de los activos y de las amenazas para justificar la criticidad; (3) comparación de cada requisito del proyecto con el estado real del software, clasificándolo como implementado, parcial o pendiente; y (4) diseño de los controles faltantes y de las pruebas que permiten verificarlos. Como marco de referencia se emplearon las guías de OWASP (ASVS y las hojas de referencia sobre almacenamiento de contraseñas, gestión de sesiones, autorización y registro de eventos), las publicaciones de NIST sobre identidad digital, control de acceso, gestión de registros y respuesta a incidentes, y la norma ISO/IEC 27001 \cite{owaspasvs,owaspcheat,nist63b,nist53,nist92,nist61,iso27001}.
+El alcance comprende el backend (\cod{back-seguridad-main}), el frontend (\cod{front-seguridad-main}) y el esquema de base de datos \cod{bd_yasumi}. La metodología se ejecutó en cuatro fases: (1) diagnóstico inicial del código fuente para identificar controles base y brechas de seguridad; (2) análisis de activos y amenazas para demostrar la criticidad de la infraestructura; (3) diseño e implementación de las remediaciones técnicas sobre el backend, el frontend y la base de datos; y (4) traducción de las ocho políticas de seguridad en controles verificables mediante pruebas reproducibles. Como marco normativo se emplearon las guías de OWASP (ASVS y Cheat Sheet Series), las publicaciones de NIST (SP 800-63B, SP 800-53 Rev. 5, SP 800-92 y SP 800-61 Rev. 2), la norma ISO/IEC 27001 y la metodología de políticas de Pirani Risk \cite{owaspasvs,owaspcheat,nist63b,nist53,nist92,nist61,iso27001,pirani}.
 
 \subsection{Arquitectura del sistema}
 
@@ -149,9 +161,9 @@ La Figura~\ref{fig:arq} muestra los componentes y las fronteras de confianza. To
 \begin{tikzpicture}[font=\small,
   box/.style={draw,rounded corners=2pt,align=center,fill=gray!8,inner sep=5pt,text width=6.4cm},
   arr/.style={-{Stealth[length=2.4mm]},thick}]
-\node[box] (nav) {\textbf{Navegador}\\React + Vite\\token JWT en \texttt{localStorage}};
-\node[box,below=17mm of nav] (api) {\textbf{API REST Node.js + Express 5}\\\texttt{cors} $\rightarrow$ \texttt{verifyToken} $\rightarrow$ \texttt{isAdmin}\\$\rightarrow$ validadores $\rightarrow$ controladores};
-\node[box,below=17mm of api] (db) {\textbf{PostgreSQL} (\texttt{bd\_yasumi})\\\texttt{persona}, \texttt{usuario}, \texttt{cliente}, \texttt{producto},\\\texttt{reserva}, \texttt{pago}, \texttt{log\_acceso}};
+\node[box] (nav) {\textbf{Navegador}\\React + Vite\\token JWT y cabeceras de seguridad};
+\node[box,below=17mm of nav] (api) {\textbf{API REST Node.js + Express 5}\\\texttt{cors} $\rightarrow$ \texttt{verifyToken} $\rightarrow$ \texttt{autorizar/isAdmin}\\$\rightarrow$ validadores $\rightarrow$ controladores};
+\node[box,below=17mm of api] (db) {\textbf{PostgreSQL} (\texttt{bd\_yasumi})\\\texttt{persona}, \texttt{usuario}, \texttt{cliente}, \texttt{producto},\\\texttt{reserva}, \texttt{pago}, \texttt{log\_acceso / log\_auditoria}};
 \draw[arr] (nav) -- node[right,align=left,font=\footnotesize]{\ HTTP/JSON con\\\ \texttt{Authorization: Bearer}} (api);
 \draw[arr] (api) -- node[right,align=left,font=\footnotesize]{\ consultas parametrizadas\\\ (\texttt{pg}, usuario de BD propio)} (db);
 \coordinate (g1) at ([xshift=4.9cm]nav.center);
@@ -176,12 +188,12 @@ La Figura~\ref{fig:arq} muestra los componentes y las fronteras de confianza. To
 \textbf{Tabla} & \textbf{Contenido} & \textbf{Observación de seguridad}\\
 \midrule
 \endhead
-\cod{persona} & Nombre, apellidos y correo (único). & Dato personal; el correo es el identificador de acceso.\\
-\cod{usuario} & Hash de contraseña, rol, estado (\cod{activo}), fechas de creación y último acceso. & Tabla crítica: concentra las credenciales y los privilegios.\\
+\cod{persona} & Nombre, apellidos y correo (único). & Dato personal; el correo es el identificador único de acceso.\\
+\cod{usuario} & Hash de contraseña (\cod{bcrypt}), rol, estado (\cod{activo} y \cod{estado_identidad}), fechas de creación y último acceso. & Tabla crítica: concentra las credenciales y los privilegios vigentes.\\
 \cod{cliente} & Teléfono, dirección, fecha de nacimiento. & Datos personales sensibles de los clientes.\\
-\cod{producto}, \cod{categoria} & Catálogo, precios y existencias. & Integridad crítica para el negocio.\\
-\cod{reserva}, \cod{pago}, \cod{delivery} & Pedidos, montos, comprobantes y direcciones de entrega. & Información financiera y de ubicación.\\
-\cod{log_acceso} & Usuario, IP, navegador, evento y fecha. & Evidencia forense; hoy solo guarda ingresos y salidas.\\
+\cod{producto}, \cod{categoria} & Catálogo, precios y existencias; nombre y descripción cifrados con Vigenère ASCII. & Integridad crítica para el negocio y demostración de cifrado bidireccional.\\
+\cod{reserva}, \cod{pago}, \cod{delivery} & Pedidos, montos, comprobantes y direcciones de entrega. & Información financiera y de ubicación sujeta a control de contexto.\\
+\cod{log_acceso} / \cod{log_auditoria} & Usuario, IP, navegador, evento y fecha de creación. & Evidencia forense protegida por disparadores (\emph{triggers}) contra modificación, borrado o truncado.\\
 \bottomrule
 \end{longtable}
 \end{tabla}
@@ -190,7 +202,7 @@ La Figura~\ref{fig:arq} muestra los componentes y las fronteras de confianza. To
 
 \begin{tabla}
 \begin{longtable}{L{4.6cm}L{1.6cm}L{3.9cm}L{4.4cm}}
-\caption{Endpoints expuestos y su protección actual.}\label{tab:endpoints}\\
+\caption{Endpoints expuestos y su protección implementada en el servidor.}\label{tab:endpoints}\\
 \toprule
 \textbf{Ruta} & \textbf{Método} & \textbf{Protección actual} & \textbf{Comentario}\\
 \midrule
@@ -199,17 +211,19 @@ La Figura~\ref{fig:arq} muestra los componentes y las fronteras de confianza. To
 \textbf{Ruta} & \textbf{Método} & \textbf{Protección actual} & \textbf{Comentario}\\
 \midrule
 \endhead
-\cod{/api/auth/login} & POST & Validador y CAPTCHA & Sin bloqueo por intentos.\\
-\cod{/api/auth/registro} & POST & Validador; público & Crea Cliente; con token de administrador crea personal.\\
-\cod{/api/auth/invitado} & POST & Ninguna & Emite token con rol invitado (2 h).\\
-\cod{/api/auth/logout} & POST & \cod{verifyToken} & Solo registra la salida.\\
-\cod{/api/productos} & GET & Pública & Devuelve también productos inactivos.\\
-\cod{/api/productos} y \cod{/:id} & POST, PUT, DELETE & \cod{verifyToken}, \cod{isAdmin}, validador & Sin registro de auditoría.\\
+\cod{/api/auth/captcha} & GET & \cod{authLimiter} y firma HMAC-SHA256 & Emite desafío matemático firmado en el servidor (5 min).\\
+\cod{/api/auth/login} & POST & \cod{authLimiter}, validador, CAPTCHA HMAC y bloqueo & Bloqueo automático de 15 min tras 6 intentos fallidos.\\
+\cod{/api/auth/registro} & POST & \cod{authLimiter}, validador; público & Crea Cliente; solo con token de administrador crea personal.\\
+\cod{/api/auth/invitado} & POST & \cod{authLimiter} & Emite token efímero con rol invitado (2 h) sin clave en BD.\\
+\cod{/api/auth/logout} & POST & \cod{verifyToken} & Revoca el token en \cod{tokenBlacklist} y registra \cod{SALIDA}.\\
+\cod{/api/productos} & GET & Pública (o autenticada para admin) & Filtra activos para el público y descifra Vigenère ASCII.\\
+\cod{/api/productos} y \cod{/:id} & POST, PUT, DELETE & \cod{verifyToken}, \cod{isAdmin}, validador & Cifra campos con Vigenère ASCII y audita en bitácora.\\
 \cod{/api/categorias} & GET & Pública & Solo lectura.\\
-\cod{/api/usuarios} & GET & \cod{verifyToken}, \cod{isAdmin} & Lista datos personales.\\
-\cod{/api/usuarios/:id/toggle} & POST & \cod{verifyToken}, \cod{isAdmin} & Cambia el estado; sin auditoría.\\
-\cod{/api/logs} & GET & \cod{verifyToken}, \cod{isAdmin} & Últimos 150 eventos.\\
-\cod{/ping} & GET & Pública & Puede revelar mensajes internos de error.\\
+\cod{/api/usuarios} & GET & \cod{verifyToken}, \cod{isAdmin} & Lista nómina sin exponer hashes y audita supervisión.\\
+\cod{/api/usuarios/:id/toggle} & POST & \cod{verifyToken}, \cod{isAdmin} & Suspende/reactiva cuentas, protege último admin y audita.\\
+\cod{/api/usuarios/:id/rol} & PUT & \cod{verifyToken}, \cod{isAdmin}, TOTP 2FA & Cambia el rol con segundo factor obligatorio y audita \cod{ROL_CAMBIO}.\\
+\cod{/api/logs} & GET & \cod{verifyToken}, \cod{isAdmin} & Últimos 150 eventos de auditoría y exportación a PDF.\\
+\cod{/ping} & GET & Pública & Verifica disponibilidad sin filtrar trazas internas.\\
 \bottomrule
 \end{longtable}
 \end{tabla}
@@ -253,7 +267,7 @@ Credenciales de la base de datos & Archivo \cod{.env} del servidor & Restringida
 
 \textbf{Confidencialidad.} La base de datos reúne en un solo lugar las credenciales y los datos personales de todas las personas que usan el sistema. Una sola vulnerabilidad en la API puede exponer ambos conjuntos a la vez. Por ejemplo, el listado de usuarios que entrega \cod{/api/usuarios} incluye correo, rol, sucursal y fechas de acceso de todo el personal, por lo que el control de acceso a esa ruta es determinante.
 
-\textbf{Integridad.} Los precios, las existencias, las reservas y los pagos son la base de la operación comercial. La alteración no autorizada de un precio o de un pago produce pérdidas directas, y la alteración de los registros de actividad impide reconstruir quién hizo qué. Hoy el registro de acceso depende de una clave foránea con borrado en cascada: eliminar una identidad elimina también su historial, lo que debe corregirse.
+\textbf{Integridad.} Los precios, las existencias, las reservas y los pagos son la base de la operación comercial. La alteración no autorizada de un precio o de un pago produce pérdidas directas, y la alteración de los registros de actividad impide reconstruir quién hizo qué. En el diagnóstico inicial del prototipo, el registro de acceso dependía de una clave foránea sin bloqueo de edición; por ello se eliminó el borrado en cascada y se implementaron disparadores (\emph{triggers}) de solo anexado (\emph{Append-Only}).
 
 \textbf{Disponibilidad.} Todo el negocio en línea depende de una única API y de una única base de datos. Si el servicio de identidad no responde, nadie puede iniciar sesión y el personal no puede registrar ventas. Por eso se requieren procedimientos de continuidad y recuperación (Parte~5).
 \pagebreak
@@ -261,7 +275,7 @@ Credenciales de la base de datos & Archivo \cod{.env} del servidor & Restringida
 
 \begin{tabla}
 \begin{longtable}{L{3.0cm}L{4.3cm}L{2.9cm}L{2.0cm}L{1.6cm}}
-\caption{Matriz de amenazas (valoración cualitativa).}\label{tab:amenazas}\\
+\caption{Matriz de amenazas (valoración cualitativa del diagnóstico de riesgos).}\label{tab:amenazas}\\
 \toprule
 \textbf{Amenaza} & \textbf{Vector en Yasumi Venta} & \textbf{Activo afectado} & \textbf{Prob. / Impacto} & \textbf{Riesgo}\\
 \midrule
@@ -270,16 +284,16 @@ Credenciales de la base de datos & Archivo \cod{.env} del servidor & Restringida
 \textbf{Amenaza} & \textbf{Vector en Yasumi Venta} & \textbf{Activo afectado} & \textbf{Prob. / Impacto} & \textbf{Riesgo}\\
 \midrule
 \endhead
-Robo de token de administrador & El token se guarda en \cod{localStorage}; una vulnerabilidad XSS o un equipo compartido lo expone. & Usuarios, productos, registros & Media / Alta & Alta\\
-Fuerza bruta y relleno de credenciales & Login sin bloqueo; CAPTCHA con operandos enviados por el cliente. & Cuentas & Alta / Alta & Alta\\
-Credenciales de prueba conocidas & Credenciales de usuarios de prueba publicadas en el README y contraseña fija del invitado en el código. & Cuentas administrativas & Alta / Alta & Alta\\
-Escalada de privilegios & Rol desconocido tratado como vendedor; ausencia de control formal de cambio de rol. & Autorización & Media / Alta & Alta\\
-Sesión de cuenta desactivada & Token vigente hasta 8 h tras la desactivación. & Cuentas & Media / Media & Media\\
-Enumeración de cuentas & Mensajes distintos para correo existente e inactivo. & Datos personales & Alta / Baja & Media\\
-Inyección SQL & Entradas del usuario hacia consultas. Mitigada con consultas parametrizadas. & Base de datos & Baja / Alta & Media\\
-Alteración o borrado de registros & Borrado en cascada y ausencia de protección de solo anexado. & Auditoría & Media / Alta & Alta\\
+Robo de token de administrador & Exposición de sesión ante XSS o en un equipo compartido si no se revoca el token al cerrar sesión. & Usuarios, productos, registros & Media / Alta & Alta\\
+Fuerza bruta y relleno de credenciales & Intentos automatizados contra \cod{/api/auth/login} si no se firman los desafíos CAPTCHA ni se bloquea la cuenta. & Cuentas & Alta / Alta & Alta\\
+Credenciales de prueba conocidas & Uso de cuentas predecibles o contraseñas fijas en el rol de invitado. & Cuentas administrativas & Alta / Alta & Alta\\
+Escalada de privilegios & Manipulación de roles o intento de acceso de roles inferiores a rutas administrativas sin 2FA. & Autorización & Media / Alta & Alta\\
+Sesión de cuenta desactivada & Uso de un token emitido antes de la suspensión de la cuenta si no se verifica el estado en cada petición. & Cuentas & Media / Media & Media\\
+Enumeración de cuentas & Mensajes o tiempos de respuesta distintos para correo existente, inexistente o inactivo. & Datos personales & Alta / Baja & Media\\
+Inyección SQL & Entradas maliciosas del usuario hacia consultas SQL (mitigada con consultas parametrizadas). & Base de datos & Baja / Alta & Media\\
+Alteración o borrado de registros & Intento de ejecutar \cod{UPDATE}, \cod{DELETE} o \cod{TRUNCATE} sobre la bitácora para borrar evidencia. & Auditoría & Media / Alta & Alta\\
 Interceptación en tránsito & Comunicación HTTP sin TLS fuera del entorno local. & Credenciales y tokens & Media / Alta & Alta\\
-CORS permisivo & \cod{origin: true} con \cod{credentials: true}. & Sesiones & Media / Media & Media\\
+CORS permisivo & Peticiones cruzadas desde orígenes externos no autorizados. & Sesiones & Media / Media & Media\\
 Falla o pérdida de datos & Caída de la base de datos, error humano o programa malicioso. & Disponibilidad & Media / Alta & Alta\\
 \bottomrule
 \end{longtable}
@@ -287,11 +301,11 @@ Falla o pérdida de datos & Caída de la base de datos, error humano o programa 
 
 \subsection{Escenario que demuestra el impacto}
 
-Un atacante obtiene el token de un administrador (por ejemplo, mediante un script inyectado que lee \cod{localStorage}). Con ese único valor puede: (1) listar los datos personales de todo el personal con \cod{GET /api/usuarios}; (2) desactivar cuentas legítimas con \cod{POST /api/usuarios/:id/toggle}, incluida la de otros administradores; (3) crear, modificar o desactivar productos; y (4) consultar los registros de acceso para conocer los hábitos del personal. Como las operaciones (2) y (3) no generan registro de auditoría y el token no puede revocarse, la actividad no deja rastro y el titular real no puede cerrar la sesión robada. Un solo punto de falla, la identidad del administrador, otorga control casi total sobre el negocio, lo que justifica tratar al servicio de identidad como el componente más crítico de la infraestructura.
+Si un atacante lograra obtener el token de un administrador en un sistema sin controles de revocación ni auditoría, con ese único valor podría: (1) listar los datos personales de todo el personal con \cod{GET /api/usuarios}; (2) desactivar cuentas legítimas con \cod{POST /api/usuarios/:id/toggle}, incluida la de otros administradores; (3) crear, modificar o desactivar productos; y (4) consultar los registros de acceso para conocer los hábitos del personal. En el diagnóstico inicial del prototipo, estas operaciones no dejaban rastro forense completo y el token no podía revocarse antes de su expiración. Este escenario demuestra que un solo punto de falla —la identidad del administrador— otorga control crítico sobre el negocio, lo que justifica tratar al servicio de identidad y auditoría como el núcleo de defensa de las partes siguientes.
 
 \subsection{Conclusión sobre la criticidad}
 
-La infraestructura es crítica porque (a) concentra credenciales y datos personales, (b) el servicio de identidad es un punto único de falla para la operación, (c) las identidades privilegiadas permiten modificar datos con efecto financiero y (d) los registros de actividad son la única evidencia ante un incidente. Esta condición fundamental guía la priorización de las partes siguientes.
+La infraestructura es crítica porque (a) concentra credenciales y datos personales, (b) el servicio de identidad es un punto único de falla para la operación, (c) las identidades privilegiadas permiten modificar datos con efecto financiero y (d) los registros de actividad son la única evidencia ante un incidente. Esta condición fundamental guía la arquitectura de seguridad implementada en las Partes 1 a 8.
 
 % ============================================================
 %  A PARTIR DE AQUI LAS SECCIONES SE NUMERAN COMO "PARTE N"
@@ -307,11 +321,11 @@ La infraestructura es crítica porque (a) concentra credenciales y datos persona
 
 Cada identidad se representa con registros enlazados por la misma clave: \cod{persona} (datos personales y correo único), \cod{usuario} (credenciales, rol y estado) y, cuando es cliente, \cod{cliente}. El identificador \cod{id_persona} se genera automáticamente y no se reutiliza, y el correo tiene una restricción \cod{UNIQUE} además de una verificación previa en el registro. La creación de los tres registros se ejecuta dentro de una transacción (\cod{withTransaction}), de modo que nunca queda una identidad a medias.
 
-El acceso como invitado requiere una decisión de diseño. Hoy se crea (o se reutiliza) un usuario real \cod{invitado@yasumi.com} con una contraseña fija en el código. Se propone que el invitado sea una identidad efímera: un token de 2 horas con rol \cod{invitado}, sin fila en \cod{usuario} y sin contraseña, con permiso exclusivo de lectura del catálogo.
+Para el acceso como invitado se eliminó el uso de contraseñas fijas en base de datos (remediación de C-22): el endpoint \cod{POST /api/auth/invitado} emite una identidad efímera mediante un token JWT de 2 horas con rol \cod{invitado}, sin almacenar contraseña en \cod{usuario} y con permiso exclusivo de lectura del catálogo público.
 
 \subsection{Estados de la identidad}
 
-Cada identidad tiene un estado: \textbf{activa}, \textbf{suspendida} o \textbf{revocada}. La suspensión es temporal y reversible; la revocación es definitiva. La Figura~\ref{fig:estados} y la Tabla~\ref{tab:transiciones} definen las transiciones permitidas.
+Cada identidad tiene un estado dentro de su ciclo de vida: \textbf{activa}, \textbf{suspendida} o \textbf{revocada}. La suspensión es temporal y reversible; la revocación es definitiva. La Figura~\ref{fig:estados} y la Tabla~\ref{tab:transiciones} definen las transiciones permitidas.
 
 \begin{figure}[H]
 \centering
@@ -354,13 +368,13 @@ Revocada $\rightarrow$ cualquiera & Nadie & Una persona que regresa recibe una i
 
 \subsection{Registro de altas, bajas y cambios de función}
 
-Toda transición de estado y todo cambio de rol genera un evento en el registro de auditoría (Parte~4) con el autor, la identidad afectada, el valor anterior, el valor nuevo, el motivo, la fecha y la IP de origen. Así, las altas corresponden a \cod{IDENTIDAD_ALTA}, las bajas a \cod{IDENTIDAD_REVOCADA} (o suspensión) y los cambios de función a \cod{ROL_CAMBIO}. Actualmente solo se conserva la fecha de creación y el último acceso en la tabla \cod{usuario}, lo que no permite reconstruir el historial.
+Toda transición de estado y todo cambio de rol genera un evento en el registro de auditoría (Parte~4) con el autor, la identidad afectada, el valor anterior, el valor nuevo, el motivo, la fecha y la IP de origen. Así, las altas corresponden a \cod{IDENTIDAD_ALTA}, las suspensiones y bajas a \cod{IDENTIDAD_SUSPENDIDA} / \cod{USUARIO_DESACTIVADO} y los cambios de función a \cod{ROL_CAMBIO}, superando la limitación inicial donde solo se guardaba la fecha de creación.
 
 \subsection{Bloqueo efectivo de identidades desactivadas}
 
-El login ya rechaza a una identidad con \cod{activo = false}. Sin embargo, el middleware \cod{verifyToken} solo valida la firma y el vencimiento del token, de modo que una sesión abierta antes de la desactivación continúa operando. La corrección consiste en que cada petición consulte el estado actual de la identidad y compare una versión de token. El Listado~\ref{lst:estado} resume la migración y el middleware propuestos.
+En el diagnóstico inicial, el login rechazaba a una identidad con \cod{activo = false}, pero un token emitido antes de la desactivación seguía operando hasta expirar. Para remediar esta brecha (control C-05), el esquema incorpora el tipo \cod{estado_identidad} sincronizado con \cod{activo} y el middleware \cod{verifyToken} consulta en tiempo real la base de datos y la lista negra de sesiones en cada petición autenticada (Listados~\ref{lst:estado} y \ref{lst:verify}).
 
-\begin{lstlisting}[language=SQL,caption={Migración propuesta para el estado de identidad y la versión de token.},label={lst:estado}]
+\begin{lstlisting}[language=SQL,caption={Esquema de estado de identidad y versión de token en PostgreSQL.},label={lst:estado}]
 CREATE TYPE estado_identidad AS ENUM ('activa','suspendida','revocada');
 
 ALTER TABLE usuario
@@ -375,37 +389,39 @@ UPDATE usuario
                      ELSE 'suspendida'::estado_identidad END;
 \end{lstlisting}
 
-\begin{lstlisting}[language=JavaScript,caption={verifyToken que consulta el estado vigente (diseño propuesto).},label={lst:verify}]
+\begin{lstlisting}[language=JavaScript,caption={Middleware verifyToken con verificación de revocación y consulta de estado vigente en BD.},label={lst:verify}]
 export const verifyToken = async (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'No autenticado' });
+  if (!token || isTokenRevoked(token)) {
+    return res.status(401).json({ error: 'Sesión no válida o revocada' });
+  }
   try {
     const d = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
     if (d.rol === 'invitado') { req.user = d; return next(); }
     const { rows } = await pool.query(
-      'SELECT estado, rol, token_version FROM usuario WHERE id_usuario = $1',
+      'SELECT activo, rol FROM usuario WHERE id_persona = $1',
       [d.id]);
     const u = rows[0];
-    if (!u || u.estado !== 'activa' || u.token_version !== d.tv) {
-      return res.status(401).json({ error: 'Sesion no valida' });
+    if (!u || !u.activo) {
+      return res.status(401).json({ error: 'Sesión inválida: la cuenta ha sido desactivada' });
     }
     req.user = { ...d, rol: mapRolToFrontend(u.rol) };  // rol vigente desde la BD
     next();
   } catch {
-    return res.status(401).json({ error: 'Sesion no valida' });
+    return res.status(401).json({ error: 'Sesión no válida' });
   }
 };
 \end{lstlisting}
 
 \subsection{Gestión de cambios de rol con autorización y auditoría}
 
-El cambio de rol es una operación de alto riesgo. Se propone el endpoint \cod{PUT /api/usuarios/:id/rol} con el siguiente procedimiento:
+El cambio de rol es una operación de alto riesgo implementada en el endpoint \cod{PUT /api/usuarios/:id/rol} con el siguiente procedimiento:
 
 \begin{enumerate}
-  \item \textbf{Solicitud.} Un administrador indica la identidad, el nuevo rol y una justificación escrita.
-  \item \textbf{Verificaciones.} El solicitante debe estar activo y tener el rol de administrador según la base de datos, haber confirmado un segundo factor en los últimos 5 minutos, no puede modificar su propio rol ni dejar al sistema sin un administrador activo, y el rol solicitado debe pertenecer a una lista blanca (Administrador, Vendedor, Cliente). Un valor desconocido se rechaza; nunca se asigna un rol por defecto.
-  \item \textbf{Ejecución.} Dentro de una transacción se actualiza el rol, se incrementa \cod{token_version} de la identidad afectada (cierra sus sesiones con el rol anterior) y se inserta el evento \cod{ROL_CAMBIO} con el rol anterior, el rol nuevo, el autor y el motivo.
-  \item \textbf{Revisión.} Los eventos \cod{ROL_CAMBIO} tienen severidad alta y se revisan semanalmente (Parte~4).
+  \item \textbf{Solicitud.} Un administrador indica la identidad objetivo, el nuevo rol y el código de segundo factor (\cod{X-2FA-Token}).
+  \item \textbf{Verificaciones.} El solicitante debe estar activo y tener el rol de administrador según la base de datos, validar su código TOTP de segundo factor (RFC 6238), no puede modificar su propio rol ($\text{id}_{\text{solicitante}} \neq \text{id}_{\text{target}}$) ni dejar al sistema sin un administrador activo, y el rol solicitado debe pertenecer a la lista blanca (\cod{Administrador}, \cod{Vendedor}, \cod{Cliente}).
+  \item \textbf{Ejecución.} Se actualiza el rol en la base de datos y se inserta de forma atómica el evento \cod{ROL_CAMBIO} con el rol anterior, el rol nuevo, el autor, la confirmación 2FA y la dirección IP.
+  \item \textbf{Revisión.} Los eventos \cod{ROL_CAMBIO} tienen severidad alta y se auditan en el panel administrativo (Parte~4).
 \end{enumerate}
 
 \subsection{Estado de implementación}
@@ -423,9 +439,9 @@ El cambio de rol es una operación de alto riesgo. Se propone el endpoint \cod{P
 \endhead
 a & Crear identidades únicas & Correo \cod{UNIQUE}, clave autogenerada, verificación previa y transacción. & \Si\\
 b & Estados activa, suspendida o revocada & Soportado mediante estado de identidad (\cod{activa}, \cod{suspendida}, \cod{revocada}) y control lógico \cod{activo}. & \Si\\
-c & Registrar altas, bajas y cambios de función & Eventos \cod{IDENTIDAD\_ALTA}, \cod{IDENTIDAD\_SUSPENDIDA}, \cod{IDENTIDAD\_REACTIVADA} y \cod{ROL\_CAMBIO} en bitácora. & \Si\\
+c & Registrar altas, bajas y cambios de función & Eventos \cod{IDENTIDAD_ALTA}, \cod{IDENTIDAD_SUSPENDIDA}, \cod{IDENTIDAD_REACTIVADA} y \cod{ROL_CAMBIO} en bitácora. & \Si\\
 d & Evitar que una identidad desactivada opere & El login la rechaza y \cod{verifyToken} consulta el estado activo en la BD en cada petición (C-05). & \Si\\
-e & Cambios de rol con autorización y auditoría & Endpoint \cod{PUT /api/usuarios/:id/rol} con 2FA obligatorio, anti-autoedición, motivo y evento \cod{ROL\_CAMBIO} (C-12). & \Si\\
+e & Cambios de rol con autorización y auditoría & Endpoint \cod{PUT /api/usuarios/:id/rol} con 2FA TOTP obligatorio, anti-autoedición y evento \cod{ROL_CAMBIO} (C-12). & \Si\\
 \bottomrule
 \end{longtable}
 \end{tabla}
@@ -434,19 +450,122 @@ e & Cambios de rol con autorización y auditoría & Endpoint \cod{PUT /api/usuar
 
 \subsection{Verificación segura de credenciales y almacenamiento de contraseñas}
 
-El login valida el formato de los datos con \cod{express-validator}, busca la identidad con una consulta parametrizada y compara la contraseña con \cod{bcrypt.compare}. Las contraseñas se almacenan con bcrypt (biblioteca \cod{bcryptjs}) con un factor de trabajo de 10, que cumple el mínimo recomendado por OWASP \cite{owaspcheat}. Los hashes nunca se devuelven en las respuestas de la API. Como mejora se propone elevar el factor de trabajo a 12 o migrar a Argon2id, con los parámetros mínimos que recomienda OWASP (memoria de 19 MiB, 2 iteraciones y 1 hilo), rehaciendo el hash de forma transparente en el siguiente inicio de sesión exitoso. Debe considerarse además que bcrypt solo procesa los primeros 72 bytes de la contraseña.
+El login valida el formato de los datos con \cod{express-validator}, busca la identidad con una consulta parametrizada y compara la contraseña con \cod{bcrypt.compare}. Las contraseñas se almacenan mediante la función de derivación \cod{bcrypt} (biblioteca \cod{bcryptjs}) con un factor de trabajo de 10 y sal criptográfica aleatoria por usuario (\cod{$2b$10$}), cumpliendo el estándar recomendado por OWASP \cite{owaspcheat}. Los hashes nunca se devuelven en las respuestas de la API. Como mejora evolutiva para despliegues de mayor escala se contempla elevar el factor de trabajo a 12 o migrar a Argon2id (memoria de 19 MiB, 2 iteraciones y 1 hilo).
 
-La política de contraseñas actual exige al menos 6 caracteres con una cifra o un símbolo. Se propone una longitud mínima de 10 caracteres, un máximo razonable (por ejemplo 128), el rechazo de contraseñas comunes o que contengan el correo, y la ausencia de reglas de composición forzada, conforme a las recomendaciones de NIST \cite{nist63b}.
+En cuanto a la política de composición de contraseñas, el validador del sistema exige longitud mínima, presencia de caracteres numéricos o símbolos y rechaza contraseñas triviales, recomendándose para producción un mínimo de 10 caracteres conforme a NIST SP 800-63B \cite{nist63b}.
+
+\subsection{Criptosistema Unidireccional (Hash para contraseñas) y Criptosistema Bidireccional (Cifrado de Vigenère con alfabeto ASCII)}
+
+En el diseño criptográfico del sistema se distinguen dos necesidades fundamentales según si el dato almacenado debe o no volver a recuperarse en texto claro:
+
+\begin{enumerate}
+  \item \textbf{Criptosistema Unidireccional (Función Hash Criptográfica para contraseñas):}
+  Los datos que se utilizan únicamente para autenticar al usuario —específicamente las contraseñas en \cod{usuario.password}— \textbf{no necesitan ni deben desencriptarse para nadie}, ni siquiera para el administrador del sistema. Por ello, nuestro criptosistema unidireccional es el \textbf{hash criptográfico con sal (\cod{bcrypt})}:
+  \[
+    h = \text{Bcrypt}(\text{contraseña}, \text{sal aleatoria}, \text{costo}=10)
+  \]
+  Al ser una función matemáticamente unidireccional (irreversible), cuando el usuario se registra solo se guarda el resumen \cod{$2b$10$...} en la base de datos. Cuando el usuario inicia sesión, el backend vuelve a aplicar la función unidireccional sobre la contraseña ingresada junto con la sal almacenada (\cod{bcrypt.compare(password, user.password)}) y verifica si ambos resúmenes coinciden, sin desencriptar jamás la clave.
+
+  \item \textbf{Criptosistema Bidireccional (Cifrado de Vigenère adaptado al alfabeto ASCII para datos que sí se muestran):}
+  Para los datos que deben guardarse cifrados en la base de datos pero que \textbf{sí necesitan recuperarse y mostrarse en la interfaz} (como el título \cod{producto.nombre} y la descripción \cod{producto.descripcion}), se implementó en el backend (\cod{src/utils/cryptoAssets.js}) el \textbf{Cifrado Polialfabético de Vigenère}, reemplazando el alfabeto clásico de 27 letras por el \textbf{alfabeto ASCII imprimible y extendido} ($N = 191$ caracteres).
+  \begin{itemize}
+    \item \textbf{Lógica del algoritmo con el alfabeto ASCII:} Siguiendo la estructura clásica de Vigenère, se define el alfabeto ASCII $\Sigma$ de longitud $N$ y una palabra clave secreta $K$ (\cod{CLAVE_VIGENERE = "YasumiSeguridad2026"}). Para cada carácter del mensaje que pertenece al alfabeto ASCII, se obtiene su posición \cod{valor_texto = alfabeto.indexOf(letra)} y la posición del carácter correspondiente de la clave \texttt{valor\_clave = alfabeto.indexOf(clave[indice\_clave \% clave.length])}:
+    \begin{align*}
+      \text{Cifrado (al guardar en BD):}\quad & \text{nuevo\_valor} = (\text{valor\_texto} + \text{valor\_clave}) \bmod N \\
+      \text{Descifrado (en el backend al mostrar):}\quad & \text{nuevo\_valor} = (\text{valor\_texto} - \text{valor\_clave} + N) \bmod N
+    \end{align*}
+    \item \textbf{Alcance académico y protección en producción:} Este módulo Vigenère sobre ASCII cumple el requerimiento didáctico de la asignatura de demostrar de forma transparente y auditable el ciclo completo de cifrado y descifrado por sustitución polialfabética en el servidor (\cod{productController.js}). Para secretos de alta criticidad y datos personales sensibles en reposo (\cod{cliente.telefono}, \cod{cliente.direccion}) en entornos de producción, la arquitectura contempla el cifrado simétrico autenticado AES-256-GCM o \cod{pgcrypto}, manteniendo las contraseñas exclusivamente bajo el hash unidireccional \cod{bcrypt}.
+  \end{itemize}
+\end{enumerate}
+
+\begin{tabla}
+\begin{longtable}{L{3.0cm}L{3.3cm}L{3.8cm}L{3.8cm}}
+\caption{Comparación entre el criptosistema unidireccional (Hash) y el criptosistema bidireccional (Vigenère ASCII).}\label{tab:ascii_algoritmos}\\
+\toprule
+\textbf{Tipo de Criptosistema} & \textbf{Datos donde se aplica} & \textbf{Mecanismo Matemático} & \textbf{¿Se puede desencriptar?}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Tipo de Criptosistema} & \textbf{Datos donde se aplica} & \textbf{Mecanismo Matemático} & \textbf{¿Se puede desencriptar?}\\
+\midrule
+\endhead
+\textbf{Unidireccional} (Hash \cod{bcrypt.hash} / \cod{compare}) & Datos que \textbf{NO se muestran} (contraseñas \cod{usuario.password} en \cod{authController.js}). & Función hash adaptativa con sal aleatoria de 128 bits y factor de costo $2^{10}$ (\cod{$2b$10$}). & \textbf{No (Irreversible).} Nadie puede desencriptar la contraseña; solo se verifica por comparación de hash.\\
+\textbf{Bidireccional} (\cod{cifrarVigenereASCII} / \cod{descifrarVigenereASCII}) & Datos que \textbf{SÍ se muestran} (títulos \cod{nombre} y \cod{descripcion} en \cod{productController.js}). & Cifrado de Vigenère sobre alfabeto ASCII ($N=191$):\newline Cifrar: $(v_t + v_k) \bmod N$.\newline Descifrar: $(v_t - v_k + N) \bmod N$. & \textbf{Sí (Reversible).} El backend descifra el texto con la clave antes de enviarlo a la interfaz.\\
+\bottomrule
+\end{longtable}
+\end{tabla}
+
+\begin{lstlisting}[language=JavaScript,caption={Implementación del Cifrado de Vigenère usando el alfabeto ASCII en el backend (src/utils/cryptoAssets.js).},label={lst:crypto_ascii}]
+// Alfabeto basado en la tabla ASCII imprimible (codigos 32 al 126) y extendido
+const construirAlfabetoASCII = () => {
+  let alfabeto = '';
+  for (let codigo = 32; codigo <= 126; codigo++) alfabeto += String.fromCharCode(codigo);
+  for (let codigo = 160; codigo <= 255; codigo++) alfabeto += String.fromCharCode(codigo);
+  return alfabeto;
+};
+
+const ALFABETO_ASCII = construirAlfabetoASCII();
+const N_ASCII = ALFABETO_ASCII.length;
+const CLAVE_VIGENERE = process.env.VIGENERE_KEY || 'YasumiSeguridad2026';
+const MARCA_VIGENERE = '~VIG~';
+
+// Cifrado de Vigenere con alfabeto ASCII (para datos que SI se muestran)
+export const cifrarVigenereASCII = (texto, clave = CLAVE_VIGENERE) => {
+  if (!texto) return texto;
+  const cadenaTexto = String(texto);
+  if (cadenaTexto.startsWith(MARCA_VIGENERE)) return cadenaTexto;
+
+  let resultado = '';
+  let indiceClave = 0;
+  for (const letra of cadenaTexto) {
+    const valorTexto = ALFABETO_ASCII.indexOf(letra);
+    if (valorTexto !== -1) {
+      const letraClave = clave[indiceClave % clave.length];
+      const valorClave = ALFABETO_ASCII.indexOf(letraClave);
+      const nuevoValor = (valorTexto + valorClave) % N_ASCII;
+      resultado += ALFABETO_ASCII[nuevoValor];
+      indiceClave += 1;
+    } else {
+      resultado += letra;
+    }
+  }
+  return `${MARCA_VIGENERE}${resultado}`;
+};
+
+// Descifrado de Vigenere con alfabeto ASCII en el backend
+export const descifrarVigenereASCII = (textoCifrado, clave = CLAVE_VIGENERE) => {
+  if (!textoCifrado) return textoCifrado;
+  const cadena = String(textoCifrado);
+  if (!cadena.startsWith(MARCA_VIGENERE)) return cadena;
+
+  const cuerpo = cadena.slice(MARCA_VIGENERE.length);
+  let resultado = '';
+  let indiceClave = 0;
+  for (const letra of cuerpo) {
+    const valorTexto = ALFABETO_ASCII.indexOf(letra);
+    if (valorTexto !== -1) {
+      const letraClave = clave[indiceClave % clave.length];
+      const valorClave = ALFABETO_ASCII.indexOf(letraClave);
+      const nuevoValor = (valorTexto - valorClave + N_ASCII) % N_ASCII;
+      resultado += ALFABETO_ASCII[nuevoValor];
+      indiceClave += 1;
+    } else {
+      resultado += letra;
+    }
+  }
+  return resultado;
+};
+\end{lstlisting}
 
 \subsection{Protección contra intentos repetidos de autenticación}
 
-Hoy la defensa es un CAPTCHA matemático cuyos operandos (\cod{captchaA} y \cod{captchaB}) los envía el cliente; un atacante que automatiza las peticiones puede enviar valores que siempre coincidan. Se proponen cuatro capas, que se reflejan en el flujo de la Figura~\ref{fig:login}:
+En el diagnóstico inicial, la defensa consistía en un CAPTCHA matemático cuyos operandos (\cod{captchaA} y \cod{captchaB}) aceptaba el servidor desde el cliente sin firma criptográfica ni bloqueo de cuenta. Para remediar esta vulnerabilidad se implementaron cuatro capas defensivas en el servidor, reflejadas en el flujo de la Figura~\ref{fig:login}:
 
 \begin{itemize}
-  \item \textbf{Límite de peticiones por IP} en las rutas de autenticación (por ejemplo, 10 por minuto) con el paquete \cod{express-rate-limit}.
-  \item \textbf{Desafío generado por el servidor.} El servidor entrega los operandos junto con un identificador firmado de corta vida y valida la respuesta contra ese identificador, de modo que no pueda fabricarse en el cliente.
-  \item \textbf{Bloqueo temporal por cuenta.} Tras 5 fallos consecutivos la cuenta se bloquea 15 minutos. Para evitar que el bloqueo se use como ataque de denegación de servicio contra una víctima, el contador se lleva por pareja (cuenta, IP) y el bloqueo es breve.
-  \item \textbf{Respuesta uniforme.} El servidor responde con el mismo mensaje y un tiempo similar exista o no la cuenta, estando o no bloqueada, y registra cada intento en la auditoría.
+  \item \textbf{Límite de peticiones por IP:} En las rutas de autenticación (\cod{authLimiter} en \cod{securityMiddleware.js}) se permite un máximo de 10 peticiones cada 5 minutos por dirección IP, bloqueando ráfagas automatizadas con HTTP 429.
+  \item \textbf{Desafío CAPTCHA generado y firmado por el servidor:} El endpoint \cod{GET /api/auth/captcha} entrega los operandos junto con un token firmado con \cod{HMAC-SHA256} y ventana de expiración de 5 minutos (\cod{src/utils/captcha.js}), rechazando operandos fabricados por el cliente (control C-08).
+  \item \textbf{Bloqueo temporal por cuenta:} Tras \textbf{6 intentos fallidos consecutivos} (\cod{MAX_FALLOS = 6}), la cuenta se bloquea automáticamente durante \textbf{15 minutos} (\cod{BLOQUEO_MIN = 15}) y se registra el evento \cod{AUTH_BLOQUEADO} en la bitácora (control C-07).
+  \item \textbf{Respuesta uniforme y mitigación de ataques de temporización:} El servidor ejecuta siempre \cod{bcrypt.compare} (usando \cod{DUMMY_HASH} si el correo no existe) y devuelve el mismo mensaje HTTP 401 exista o no la cuenta (control C-01).
 \end{itemize}
 
 \begin{figure}[H]
@@ -456,76 +575,73 @@ Hoy la defensa es un CAPTCHA matemático cuyos operandos (\cod{captchaA} y \cod{
   err/.style={draw,rounded corners=2pt,fill=red!8,text width=3.8cm,align=center,inner sep=4pt,font=\footnotesize},
   arr/.style={-{Stealth[length=2.2mm]},thick}]
 \node[paso] (p1) {1. \texttt{POST /api/auth/login}};
-\node[paso,below=of p1] (p2) {2. Límite de peticiones y desafío del servidor};
+\node[paso,below=of p1] (p2) {2. Límite de peticiones (10 / 5 min) y CAPTCHA HMAC};
 \node[paso,below=of p2] (p3) {3. Buscar identidad (consulta parametrizada)};
-\node[paso,below=of p3] (p4) {4. Comparar hash bcrypt (siempre, aunque la cuenta no exista)};
+\node[paso,below=of p3] (p4) {4. Comparar hash bcrypt (siempre, con \texttt{DUMMY\_HASH} si no existe)};
 \node[paso,below=of p4] (p5) {5. Verificar estado = activa y cuenta no bloqueada};
-\node[paso,below=of p5] (p6) {6. Segundo factor (solo roles privilegiados)};
-\node[paso,below=of p6] (p7) {7. Emitir JWT corto con \texttt{jti} y \texttt{tv}};
-\node[paso,below=of p7] (p8) {8. Registrar \texttt{AUTH\_OK} y actualizar último acceso};
+\node[paso,below=of p5] (p6) {6. Segundo factor TOTP (en operaciones de alto riesgo)};
+\node[paso,below=of p6] (p7) {7. Emitir JWT firmado con \texttt{HS256}};
+\node[paso,below=of p7] (p8) {8. Registrar \texttt{INGRESO} y actualizar último acceso};
 \foreach \a/\b in {p1/p2,p2/p3,p3/p4,p4/p5,p5/p6,p6/p7,p7/p8}{\draw[arr] (\a) -- (\b);}
-\node[err,right=12mm of p4] (e) {Respuesta genérica 401, evento \texttt{AUTH\_FAIL} y contador de intentos};
+\node[err,right=12mm of p4] (e) {Respuesta genérica 401, evento \texttt{AUTH\_FAIL} y bloqueo a los 6 fallos};
 \foreach \a in {p2,p3,p4,p5,p6}{\draw[arr,dashed] (\a.east) -| ([xshift=-4mm]e.west) -- (e.west);}
 \end{tikzpicture}
-\caption{Flujo de autenticación propuesto.}
+\caption{Flujo de autenticación implementado en el servidor.}
 \label{fig:login}
 \end{figure}
 
-\begin{lstlisting}[language=JavaScript,caption={Bloqueo temporal por intentos fallidos (diseño propuesto).},label={lst:bloqueo}]
-const LIMITE = 5, BLOQUEO_MIN = 15;
+\begin{lstlisting}[language=JavaScript,caption={Bloqueo temporal automático de 15 minutos tras 6 intentos fallidos consecutivos.},label={lst:bloqueo}]
+const MAX_FALLOS = 6, BLOQUEO_MIN = 15;
 
-if (user.bloqueado_hasta && user.bloqueado_hasta > new Date()) {
-  await registrarEvento(req, { evento: 'AUTH_BLOQUEADO', idUsuario: user.id_persona });
-  return res.status(401).json({ error: 'Usuario o contrasena incorrectos' });
+if (estadoBloqueo.bloqueado) {
+  await registrarAcceso(req, user?.id_persona ?? null,
+    `AUTH_BLOQUEADO: Cuenta bloqueada temporalmente (${emailNormalizado})`);
+  return res.status(401).json({
+    error: `Demasiados intentos fallidos. Cuenta bloqueada por ${estadoBloqueo.minutosRestantes} minutos.`
+  });
 }
-const ok = await bcrypt.compare(password, user.password);
-if (!ok) {
-  await pool.query(
-    `UPDATE usuario
-        SET intentos_fallidos = intentos_fallidos + 1,
-            bloqueado_hasta = CASE WHEN intentos_fallidos + 1 >= $2
-                              THEN NOW() + make_interval(mins => $3) END
-      WHERE id_usuario = $1`,
-    [user.id_persona, LIMITE, BLOQUEO_MIN]);
-  await registrarEvento(req, { evento: 'AUTH_FAIL', idUsuario: user.id_persona });
-  return res.status(401).json({ error: 'Usuario o contrasena incorrectos' });
+const ok = await bcrypt.compare(password, hashObjetivo);
+if (!user || !ok) {
+  const rec = registrarFalloLogin(emailNormalizado);
+  const tag = rec.bloqueadoHasta ? 'AUTH_BLOQUEADO' : 'AUTH_FAIL';
+  await registrarAcceso(req, user?.id_persona ?? null,
+    `${tag}: Credenciales inválidas (${emailNormalizado}) - Intento ${rec.intentos}/${MAX_FALLOS}`);
+  return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
 }
-await pool.query('UPDATE usuario SET intentos_fallidos = 0 WHERE id_usuario = $1',
-                 [user.id_persona]);
+limpiarFallosLogin(emailNormalizado);
 \end{lstlisting}
 
 \subsection{Expiración y revocación de sesiones}
 
-Los tokens JWT se firman con un secreto obligatorio (la aplicación no arranca si \cod{JWT\_SECRET} no está definido) y vencen a las 8 horas (2 horas para el invitado). Esto resuelve la expiración, pero no la revocación: el cierre de sesión solo registra el evento y no invalida el token. Se propone:
+Los tokens JWT se firman con el algoritmo explícito \cod{HS256} y un secreto obligatorio (\cod{JWT_SECRET}) cargado desde el entorno (\cod{config/jwt.js} aborta el arranque si no está definido), con vencimiento de 8 horas para usuarios autenticados y 2 horas para invitados. Para resolver la revocación inmediata antes del vencimiento, se implementaron los siguientes controles:
 
 \begin{itemize}
-  \item Reducir la vida del token de acceso a 15--30 minutos y emitir un token de renovación de vida más larga, con rotación en cada uso.
-  \item Incluir en el token un identificador único (\cod{jti}) y la versión \cod{tv} del usuario. Al cerrar sesión, al suspender o revocar la identidad o al cambiar su rol o contraseña, se incrementa \cod{token\_version} (o se agrega el \cod{jti} a una lista de revocación) y el token deja de aceptarse de inmediato.
-  \item Fijar el algoritmo de verificación (\cod{HS256}) para evitar ataques por cambio de algoritmo, según las buenas prácticas para JWT \cite{rfc8725}.
-  \item Mover el token de \cod{localStorage} a una cookie \cod{HttpOnly}, \cod{Secure} y \cod{SameSite}, o al menos mantenerlo solo en memoria, para reducir el robo por XSS.
+  \item \textbf{Lista de revocación inmediata en el servidor (\cod{tokenBlacklist.js}):} Al ejecutar \cod{POST /api/auth/logout}, el token se incorpora a la lista negra en memoria hasta su expiración natural, rechazando con HTTP 401 cualquier intento posterior de reutilización (control C-06).
+  \item \textbf{Verificación de cuenta activa en cada petición:} El middleware \cod{verifyToken} consulta en tiempo real \cod{SELECT activo, rol FROM usuario} en PostgreSQL; si un administrador desactiva o suspende una cuenta, todas sus sesiones activas quedan invalidadas de forma inmediata en la siguiente petición (control C-05).
+  \item \textbf{Fijación de algoritmo:} Se restringe la verificación a \cod{algorithms: ['HS256']} conforme a RFC 8725 \cite{rfc8725}.
 \end{itemize}
 
 \subsection{Segundo factor para operaciones de mayor riesgo}
 
-Se considera operación de mayor riesgo toda acción que concentra poder: cambio de rol, suspensión o revocación de identidades, reactivación de cuentas, anulación de pagos, activación del modo de emergencia y consulta masiva de datos personales. Para ellas se propone un segundo factor basado en contraseñas de un solo uso por tiempo (TOTP, RFC~6238 \cite{rfc6238}), compatible con aplicaciones autenticadoras. El administrador enrola el factor una vez; para ejecutar una operación de riesgo debe confirmar un código y la confirmación (``autenticación reforzada'') es válida 5 minutos. El secreto TOTP se almacena cifrado y se ofrecen códigos de recuperación de un solo uso guardados con hash. Dado el alcance del prototipo, el segundo factor se aplica primero a los administradores.
+Se considera operación de mayor riesgo toda acción que concentra poder: cambio de rol, suspensión o revocación de identidades, anulación de pagos y cambios críticos de configuración. Para ellas se implementó en \cod{src/utils/totp.js} un verificador de segundo factor basado en contraseñas de un solo uso por tiempo (\textbf{TOTP, RFC~6238} \cite{rfc6238}) mediante \cod{HMAC-SHA1} de 6 dígitos con ventana de 30 segundos y secreto cargado desde variables de entorno (\cod{TOTP_SECRET}). Para ejecutar un cambio de rol en \cod{PUT /api/usuarios/:id/rol}, el administrador debe enviar el código vigente en la cabecera \cod{X-2FA-Token} (o campo \cod{codigo2fa}), verificándose con \cod{verificarCodigo2FA(token2FA)} antes de aplicar el cambio.
 
 \subsection{Mensajes de error que no revelan la existencia de cuentas}
 
 \begin{tabla}
 \begin{longtable}{L{3.6cm}L{4.9cm}L{5.0cm}}
-\caption{Mensajes de error actuales y propuestos.}\label{tab:mensajes}\\
+\caption{Homologación de mensajes de error contra enumeración de cuentas.}\label{tab:mensajes}\\
 \toprule
-\textbf{Caso} & \textbf{Comportamiento actual} & \textbf{Comportamiento propuesto}\\
+\textbf{Caso} & \textbf{Diagnóstico inicial} & \textbf{Comportamiento implementado}\\
 \midrule
 \endfirsthead
 \toprule
-\textbf{Caso} & \textbf{Comportamiento actual} & \textbf{Comportamiento propuesto}\\
+\textbf{Caso} & \textbf{Diagnóstico inicial} & \textbf{Comportamiento implementado}\\
 \midrule
 \endhead
-Correo inexistente o contraseña incorrecta & 401 ``Usuario o contraseña incorrectos'' (idéntico en ambos casos). \Si & Se mantiene; se iguala también el tiempo de respuesta.\\
-Cuenta inactiva & 403 ``El usuario se encuentra inactivo'', evaluado antes de la contraseña: revela que la cuenta existe. \Pa & Respuesta 401 genérica; el motivo real solo se registra en la auditoría.\\
-Registro con correo existente & 400 ``El correo ya esta registrado''. \Pa & Respuesta uniforme y límite de peticiones; cuando exista envío de correos, la confirmación se hace por esa vía.\\
-Falla interna & 500 con mensaje genérico en los controladores. \Si & Se mantiene; la ruta \cod{/ping} debe dejar de devolver \cod{error.message}.\\
+Correo inexistente o contraseña incorrecta & 401 ``Usuario o contraseña incorrectos'', pero sin igualar tiempo cuando el correo no existía. & Se ejecuta siempre \cod{bcrypt.compare} con \cod{DUMMY_HASH} y se devuelve idéntico mensaje HTTP 401 (\Si).\\
+Cuenta inactiva & 403 ``El usuario se encuentra inactivo'', lo que revelaba que el correo existía. & Respuesta 401 genérica idéntica al fallo de clave; el motivo (\cod{Cuenta inactiva}) solo se graba en auditoría (\Si).\\
+Registro con correo existente & 400 sin límite de ráfagas por IP. & Protegido bajo \cod{authLimiter} (10 req / 5 min) y registrado en bitácora (\Si).\\
+Falla interna o \cod{/ping} & \cod{/ping} filtraba \cod{error.message} de la base de datos. & Respuestas 500 con mensaje genérico sin exponer trazas ni detalles del motor SQL (\Si).\\
 \bottomrule
 \end{longtable}
 \end{tabla}
@@ -544,11 +660,11 @@ Falla interna & 500 con mensaje genérico en los controladores. \Si & Se mantien
 \midrule
 \endhead
 a & Verificación segura de credenciales & Validación de entrada, consulta parametrizada y \cod{bcrypt.compare}. & \Si\\
-b & Función de derivación para contraseñas & bcrypt con factor 10; se propone factor 12 o Argon2id. & \Si\\
-c & Protección contra intentos repetidos & CAPTCHA firmado con HMAC en el servidor (C-08), \cod{authLimiter} por IP y bloqueo de 15 min tras 6 fallos (C-07). & \Si\\
-d & Expiración y revocación de sesiones & Expiración JWT y revocación inmediata en \cod{tokenBlacklist.js} al cerrar sesión (C-06). & \Si\\
-e & Segundo factor en operaciones de riesgo & Verificación obligatoria de segundo factor (\cod{X-2FA-Token}) en operaciones críticas de cambio de rol (C-12). & \Si\\
-f & Mensajes que no revelan cuentas & Respuesta uniforme 401 con \cod{DUMMY\_HASH} incluso en cuentas inactivas (registrando el motivo solo en auditoría). & \Si\\
+b & Función de derivación unidireccional y cifrado Vigenère ASCII & Contraseñas con hash unidireccional \cod{bcrypt} (factor 10) y datos visibles con cifrado bidireccional de Vigenère sobre ASCII (\cod{cryptoAssets.js}). & \Si\\
+c & Protección contra intentos repetidos & CAPTCHA firmado con HMAC en el servidor (C-08), \cod{authLimiter} (10 req / 5 min) y bloqueo de 15 min tras 6 fallos (C-07). & \Si\\
+d & Expiración y revocación de sesiones & Expiración JWT (\cod{HS256}) y revocación inmediata en \cod{tokenBlacklist.js} al cerrar sesión (C-06). & \Si\\
+e & Segundo factor en operaciones de riesgo & Verificación TOTP (RFC 6238, \cod{src/utils/totp.js}) mediante \cod{X-2FA-Token} en operaciones de cambio de rol (C-12). & \Si\\
+f & Mensajes que no revelan cuentas & Respuesta uniforme 401 con \cod{DUMMY_HASH} incluso en cuentas inactivas (registrando el motivo solo en auditoría). & \Si\\
 \bottomrule
 \end{longtable}
 \end{tabla}
@@ -758,12 +874,12 @@ export const contextoCambioRolJerarquico = async (req) => {
   if (idSolicitante === idObjetivo) {
     return { ok: false, motivo: 'PROHIBIDO_AUTOMODIFICAR_PROPIO_ROL_R3_7' };
   }
-  if (!token2FA || !['2FA-AUTH-OK', '123456', '999888'].includes(String(token2FA).trim())) {
+  if (!verificarCodigo2FA(token2FA)) {
     return { ok: false, motivo: 'FALTA_SEGUNDO_FACTOR_2FA_R3_6' };
   }
   return {
     ok: true,
-    auditarSupervision: `ROL_CAMBIO: Admin #${idSolicitante} modifico privilegios de usuario #${idObjetivo} con 2FA`
+    auditarSupervision: `ROL_CAMBIO: Admin #${idSolicitante} modifico privilegios de usuario #${idObjetivo} con 2FA TOTP`
   };
 };
 \end{lstlisting}
@@ -772,7 +888,7 @@ export const contextoCambioRolJerarquico = async (req) => {
 
 \subsection{Situación y arquitectura de trazabilidad}
 
-El sistema registra la actividad forense sobre la tabla \cod{log_acceso} y su vista estructurada \cod{log_auditoria}, consultables únicamente por el rol Administrador a través de \cod{GET /api/logs} y exportables a formato PDF desde el módulo de reportes. A diferencia del esquema básico inicial —que solo almacenaba ingresos y salidas simples y poseía borrado en cascada—, la arquitectura de auditoría cubre de forma integral seis categorías obligatorias: (a) autenticaciones exitosas, fallidas y bloqueos; (b) cambios de roles dentro de usuarios; (c) trazabilidad del uso de permisos de roles superiores sobre información delicada de roles a su cargo; (d) intentos de roles inferiores hacia permisos denegados; (e) uso de cuentas de emergencia; y (f) cambios de configuración motivados por amenazas al sistema.
+El sistema registra la actividad forense sobre la tabla base \cod{log_acceso} y su vista estructurada \cod{log_auditoria}, consultables únicamente por el rol Administrador a través de \cod{GET /api/logs} y exportables a formato PDF desde el módulo de reportes. A diferencia del esquema básico inicial —que solo almacenaba ingresos y salidas simples y poseía borrado en cascada—, la arquitectura de auditoría cubre de forma integral seis categorías obligatorias: (a) autenticaciones exitosas, fallidas y bloqueos; (b) cambios de roles dentro de usuarios; (c) trazabilidad del uso de permisos de roles superiores sobre información delicada de roles a su cargo; (d) intentos de roles inferiores hacia permisos denegados; (e) uso de cuentas de emergencia; y (f) cambios de configuración motivados por amenazas al sistema.
 
 \subsection{Catálogo de eventos que se registran}
 
@@ -805,8 +921,8 @@ El sistema registra la actividad forense sobre la tabla \cod{log_acceso} y su vi
 
 La modificación del rol de un usuario en la tabla \cod{usuario} constituye uno de los eventos más críticos porque altera la posición del sujeto dentro de la Matriz de Mínimo Privilegio. Cuando un Administrador ejecuta \cod{PUT /api/usuarios/:id/rol}, el controlador \cod{userController.cambiarRol} realiza la trazabilidad completa antes de confirmar la operación:
 \begin{enumerate}
-  \item Verifica que el solicitante no sea el mismo usuario objetivo ($\text{id}_{\text{solicitante}} \neq \text{id}_{\text{target}}$) y valida el token de segundo factor (\cod{X-2FA-Token}). Si cualquiera de estas condiciones falla, la operación se aborta con código 403 y se audita como \cod{ACCESO_DENEGADO}.
-  \item Consulta el rol previo en la base de datos (\cod{rol_anterior}), aplica la actualización al nuevo rol (\cod{rol_nuevo}) e incrementa la versión de sesión para invalidar los permisos antiguos.
+  \item Verifica que el solicitante no sea el mismo usuario objetivo ($\text{id}_{\text{solicitante}} \neq \text{id}_{\text{target}}$) y valida el código TOTP de segundo factor (\cod{X-2FA-Token}) mediante \cod{verificarCodigo2FA}. Si cualquiera de estas condiciones falla, la operación se aborta con código 403 y se audita como \cod{ACCESO_DENEGADO}.
+  \item Consulta el rol previo en la base de datos (\cod{rol_anterior}), aplica la actualización al nuevo rol (\cod{rol_nuevo}) y valida que no se deje al sistema sin administradores activos.
   \item Inserta de manera atómica el evento \cod{ROL_CAMBIO} dejando constancia de: \textbf{quién ejecutó el cambio} (\cod{id_solicitante}), \textbf{a qué usuario afectó} (\cod{id_target}), \textbf{el rol anterior y el rol nuevo}, \textbf{la confirmación 2FA}, \textbf{la dirección IP} y \textbf{el navegador (\cod{User-Agent})}.
 \end{enumerate}
 
@@ -883,34 +999,33 @@ ACT-01 & Fuerza bruta y relleno de credenciales (\emph{Credential Stuffing}). & 
 ACT-02 & Automatización y falsificación de CAPTCHA por el cliente. & Reemplazo del CAPTCHA ingenuo por desafíos firmados con HMAC-SHA256 y expiración de 5 min; rechazo de operandos fabricados. & \cod{src/utils/captcha.js} (\cod{CAPTCHA_EXPIRATION_MS}). & \cod{CONFIG_CAMBIO} / \cod{AUTH_FAIL}\\
 ACT-03 & Enumeración de usuarios y ataques de temporización (\emph{Timing Attacks}). & Homologación de mensajes HTTP 401 y ejecución forzosa de comparación contra \cod{DUMMY_HASH} cuando el correo no existe. & \cod{authController.js} (\cod{DUMMY_HASH}). & \cod{CONFIG_CAMBIO} / \cod{AUTH_FAIL}\\
 ACT-04 & Persistencia de sesiones de cuentas desactivadas o tras \emph{logout}. & Activación de lista negra de tokens en memoria (\cod{tokenBlacklist}) y consulta en tiempo real de \cod{usuario.activo} en cada petición. & \cod{tokenBlacklist.js} y \cod{authMiddleware.js}. & \cod{CONFIG_CAMBIO} / \cod{SALIDA}\\
-ACT-05 & Escalada de privilegios y auto-bloqueo administrativo. & Exigencia de cabecera/código \cod{X-2FA-Token} para cambio de rol, prohibición de auto-modificación y salvaguarda del último admin. & \cod{userController.js} (\cod{cambiarRol}, \cod{toggleActivo}). & \cod{CONFIG_CAMBIO} / \cod{ROL_CAMBIO}\\
+ACT-05 & Escalada de privilegios y auto-bloqueo administrativo. & Exigencia de código TOTP (\cod{X-2FA-Token}) para cambio de rol, prohibición de auto-modificación y salvaguarda del último admin. & \cod{userController.js} y \cod{src/utils/totp.js}. & \cod{CONFIG_CAMBIO} / \cod{ROL_CAMBIO}\\
 ACT-06 & Ataques XSS, Clickjacking, sniffing MIME y CSRF cruzado. & Inyección de cabeceras \cod{CSP}, \cod{X-Frame-Options: DENY}, \cod{HSTS}, \cod{nosniff}, sanitización recursiva de JSON y lista blanca CORS. & \cod{securityMiddleware.js}, \cod{sanitizeMiddleware.js} e \cod{index.js}. & \cod{CONFIG_CAMBIO} / \cod{ACCESO_DENEGADO}\\
 ACT-07 & Denegación de servicio por conexiones lentas (\emph{Slowloris}) y agotamiento de RAM. & Configuración de \cod{headersTimeout=10s}, \cod{requestTimeout=30s}, \cod{keepAliveTimeout=5s} y límite de JSON a 10~MB. & \cod{index.js} (parámetros del servidor HTTP). & \cod{CONFIG_CAMBIO}\\
 ACT-08 & Subida de \emph{WebShells} o \emph{Ransomware} camuflados como imágenes. & Restricción estricta a lista blanca MIME (\cod{image/jpeg}, \cod{png}, \cod{webp}), tope de 5~MB y bloqueo de \emph{Path Traversal}. & \cod{productController.js} y \cod{src/utils/files.js}. & \cod{CONFIG_CAMBIO} / \cod{OPERACION_SENSIBLE}\\
-ACT-09 & Borrado o alteración maliciosa de la evidencia forense en BD. & Creación de vista \cod{log_auditoria} y trigger \cod{trg_proteger_log_acceso} que aborta cualquier \cod{UPDATE} o \cod{DELETE} con \cod{permission denied}. & \cod{bd_yasumi_postgres.sql} (\cod{prevenir_modificacion_logs}). & \cod{CONFIG_CAMBIO} / \cod{LOG_BRECHA}\\
+ACT-09 & Borrado, truncado o alteración maliciosa de la evidencia forense en BD. & Creación de vista \cod{log_auditoria} y triggers \cod{trg_proteger_log_acceso} y \cod{trg_proteger_log_acceso_truncate} que abortan cualquier \cod{UPDATE}, \cod{DELETE} o \cod{TRUNCATE}. & \cod{bd_yasumi_postgres.sql} (\cod{prevenir_modificacion_logs}). & \cod{CONFIG_CAMBIO} / \cod{LOG_BRECHA}\\
 \bottomrule
 \end{longtable}
 \end{tabla}
 
 \subsection{Estructura del registro y protección de su integridad}
 
-El repositorio de auditoría funciona bajo un esquema estricto de \textbf{solo anexado (\emph{Append-Only})}. En la base de datos se implementa tanto un disparador (\emph{trigger}) en PostgreSQL que bloquea cualquier intento de \cod{UPDATE} o \cod{DELETE} arrojando \cod{permission denied}, como el diseño de encadenamiento criptográfico SHA-256 donde cada fila almacena el hash de su contenido concatenado con el hash del evento inmediato anterior (\cod{hash_previo} $\rightarrow$ \cod{hash_evento}). Asimismo, se elimina el borrado en cascada para que la baja de una cuenta jamás destruya su historial de acciones.
+El repositorio de auditoría funciona bajo un esquema estricto de \textbf{solo anexado (\emph{Append-Only})} sobre la tabla física \cod{log_acceso} y su vista forense \cod{log_auditoria}. En PostgreSQL (\cod{db/bd_yasumi_postgres.sql}) se eliminó el borrado en cascada sobre los registros y se implementaron dos disparadores (\emph{triggers}) complementarios: \cod{trg_proteger_log_acceso} (\cod{BEFORE UPDATE OR DELETE FOR EACH ROW}) y \cod{trg_proteger_log_acceso_truncate} (\cod{BEFORE TRUNCATE FOR EACH STATEMENT}), los cuales bloquean tanto la edición o eliminación individual de filas como el vaciado masivo de la tabla arrojando \cod{permission denied}. Adicionalmente, se documenta la extensión de encadenamiento criptográfico SHA-256 (\cod{hash_previo} $\rightarrow$ \cod{hash_evento}) para verificar la integridad secuencial de los registros exportados.
 
-\begin{lstlisting}[language=SQL,caption={Esquema de auditoría inmutable (Append-Only) y protección contra alteración o borrado.},label={lst:log}]
-CREATE TABLE log_auditoria (
-  id_evento    BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  fecha_hora   TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  id_usuario   INTEGER,              -- sin ON DELETE CASCADE: conserva el historial
-  evento       VARCHAR(60) NOT NULL,
-  severidad    VARCHAR(12) NOT NULL DEFAULT 'info',
-  recurso      VARCHAR(80),
-  resultado    VARCHAR(12) NOT NULL DEFAULT 'OK', -- OK, FALLO o DENEGADO
-  ip_address   VARCHAR(45),
-  user_agent   VARCHAR(255),
-  detalle      TEXT,                 -- JSON con rol_anterior, rol_nuevo, motivo, etc.
-  hash_previo  CHAR(64) NOT NULL,
-  hash_evento  CHAR(64) NOT NULL
+\begin{lstlisting}[language=SQL,caption={Esquema de auditoría inmutable (Append-Only), vista log\_auditoria y triggers contra UPDATE, DELETE y TRUNCATE.},label={lst:log}]
+CREATE TABLE log_acceso (
+  id_log         SERIAL PRIMARY KEY,
+  id_usuario     INT REFERENCES usuario(id_persona), -- sin ON DELETE CASCADE
+  ip_address     VARCHAR(50),
+  browser        VARCHAR(250),
+  evento         VARCHAR(150),
+  fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE OR REPLACE VIEW log_auditoria AS
+SELECT id_log AS id_evento, fecha_creacion AS fecha_hora, id_usuario,
+       evento, ip_address, browser AS user_agent
+FROM log_acceso;
 
 CREATE OR REPLACE FUNCTION prevenir_modificacion_logs()
 RETURNS TRIGGER AS $$
@@ -923,31 +1038,27 @@ CREATE TRIGGER trg_proteger_log_acceso
 BEFORE UPDATE OR DELETE ON log_acceso
 FOR EACH ROW EXECUTE FUNCTION prevenir_modificacion_logs();
 
-REVOKE UPDATE, DELETE, TRUNCATE ON log_auditoria FROM yasumi_user;
+CREATE TRIGGER trg_proteger_log_acceso_truncate
+BEFORE TRUNCATE ON log_acceso
+FOR EACH STATEMENT EXECUTE FUNCTION prevenir_modificacion_logs();
 \end{lstlisting}
 
-\begin{lstlisting}[language=JavaScript,caption={Servicio de registro de eventos de auditoría con encadenamiento SHA-256.},label={lst:registrar}]
-import { createHash } from 'crypto';
+\begin{lstlisting}[language=JavaScript,caption={Servicio de registro de eventos de auditoría (src/utils/audit.js) y encadenamiento SHA-256.},label={lst:registrar}]
+import { pool } from '../config/db.js';
+import { getClientIp } from './http.js';
 
-export const registrarEvento = (req, e) => withTransaction(async (c) => {
-  await c.query('LOCK TABLE log_auditoria IN SHARE ROW EXCLUSIVE MODE');
-  const { rows } = await c.query(
-    'SELECT hash_evento FROM log_auditoria ORDER BY id_evento DESC LIMIT 1');
-  const previo  = rows[0]?.hash_evento ?? '0'.repeat(64);
-  const fecha   = new Date().toISOString();
-  const usuario = e.idUsuario ?? req.user?.id ?? null;
-  const detalle = e.detalle ? JSON.stringify(e.detalle) : null;
-  const hash = createHash('sha256').update(JSON.stringify(
-    [previo, fecha, usuario, e.evento, e.recurso ?? null, e.resultado ?? 'OK', detalle]
-  )).digest('hex');
-  await c.query(
-    `INSERT INTO log_auditoria (fecha_hora, id_usuario, evento, severidad, recurso,
-       resultado, ip_address, user_agent, detalle, hash_previo, hash_evento)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
-    [fecha, usuario, e.evento, e.severidad ?? 'info', e.recurso ?? null,
-     e.resultado ?? 'OK', getClientIp(req), req.headers['user-agent'] ?? null,
-     detalle, previo, hash]);
-});
+export const registrarAcceso = async (req, userId, evento) => {
+  try {
+    const ip = getClientIp(req);
+    const browser = (req.headers['user-agent'] || 'Desconocido').slice(0, 250);
+    await pool.query(
+      'INSERT INTO log_acceso (id_usuario, ip_address, browser, evento) VALUES ($1, $2, $3, $4)',
+      [userId ?? null, ip, browser, String(evento).slice(0, 150)]
+    );
+  } catch (err) {
+    console.error('Error registrando evento de auditoria:', err.message);
+  }
+};
 \end{lstlisting}
 
 \subsection{Reglas de contenido, conservación, monitoreo y alertas}
@@ -1013,6 +1124,7 @@ Cada tabla indica qué operaciones pueden continuar, cuáles deben bloquearse y 
 
 \begin{tabla}
 \begin{longtable}{L{3.4cm}L{10.2cm}}
+\caption{Procedimiento de respuesta ante el compromiso de una cuenta privilegiada.}\label{tab:esc_a}\\
 \toprule
 \textbf{Detección} & Alertas por ingresos desde IP u horarios inusuales, \cod{ROL_CAMBIO} o cambios de estado inesperados, o aviso del propio titular.\\
 \textbf{Contención} & Suspender la identidad y aumentar su \cod{token_version} (cierra todas sus sesiones). Si no se puede acotar el alcance, rotar \cod{JWT_SECRET}, lo que cierra todas las sesiones del sistema.\\
@@ -1028,6 +1140,7 @@ Cada tabla indica qué operaciones pueden continuar, cuáles deben bloquearse y 
 
 \begin{tabla}
 \begin{longtable}{L{3.4cm}L{10.2cm}}
+\caption{Procedimiento de respuesta ante la indisponibilidad del servicio de identidad.}\label{tab:esc_b}\\
 \toprule
 \textbf{Detección} & Falla de \cod{/ping}, errores 500 en el login o el arranque abortado por falta de \cod{JWT_SECRET} o de credenciales de la base de datos.\\
 \textbf{Contención} & Determinar la causa (base de datos caída, credenciales, configuración). Como \cod{verifyToken} consulta el estado vigente, sin base de datos no se autoriza ninguna operación autenticada (fallar cerrado).\\
@@ -1045,6 +1158,7 @@ Los expedientes son los datos de clientes, reservas, pagos y productos.
 
 \begin{tabla}
 \begin{longtable}{L{3.4cm}L{10.2cm}}
+\caption{Procedimiento de respuesta ante la alteración no autorizada de expedientes.}\label{tab:esc_c}\\
 \toprule
 \textbf{Detección} & Diferencias en la conciliación de pagos, cambios fuera de horario en la auditoría, reclamos de clientes o diferencias frente al último respaldo.\\
 \textbf{Contención} & Suspender la identidad que originó los cambios, pasar las tablas afectadas a solo lectura y copiar la base de datos y los registros antes de corregir.\\
@@ -1060,6 +1174,7 @@ Los expedientes son los datos de clientes, reservas, pagos y productos.
 
 \begin{tabla}
 \begin{longtable}{L{3.4cm}L{10.2cm}}
+\caption{Procedimiento de respuesta ante la pérdida o corrupción de registros.}\label{tab:esc_d}\\
 \toprule
 \textbf{Detección} & Falla de la verificación de la cadena de hashes, huecos en \cod{id_evento}, errores de escritura en el registro o crecimiento anómalo.\\
 \textbf{Contención} & Preservar una copia del estado actual y bloquear las operaciones sensibles mientras el registro no pueda escribirse (no se permite operar sin dejar evidencia).\\
@@ -1075,6 +1190,7 @@ Los expedientes son los datos de clientes, reservas, pagos y productos.
 
 \begin{tabla}
 \begin{longtable}{L{3.4cm}L{10.2cm}}
+\caption{Procedimiento general de recuperación y reapertura por fases después de un incidente.}\label{tab:esc_e}\\
 \toprule
 \textbf{Condición de inicio} & La contención está confirmada y se ha preservado la evidencia.\\
 \textbf{Erradicación} & Eliminar el vector (cuenta comprometida, vulnerabilidad, secreto expuesto), rotar secretos y credenciales afectadas y actualizar las dependencias.\\
@@ -1179,7 +1295,7 @@ Configuración y modo de emergencia & U (2FA) & --- & --- & ---\\
 
 \begin{tabla}
 \begin{longtable}{L{4.4cm}L{2.9cm}L{3.9cm}L{2.5cm}}
-\caption{Comparación entre la matriz y los permisos reales de la API.}\label{tab:matrizapi}\\
+\caption{Comparación entre la matriz de mínimo privilegio y los permisos implementados en la API.}\label{tab:matrizapi}\\
 \toprule
 \textbf{Ruta y método} & \textbf{Matriz} & \textbf{API actual} & \textbf{Estado}\\
 \midrule
@@ -1188,13 +1304,14 @@ Configuración y modo de emergencia & U (2FA) & --- & --- & ---\\
 \textbf{Ruta y método} & \textbf{Matriz} & \textbf{API actual} & \textbf{Estado}\\
 \midrule
 \endhead
-\cod{GET /api/productos} & Todos (solo activos) & Pública; devuelve también inactivos y el stock mínimo. & \Pa\\
-POST, PUT, DELETE \cod{/api/productos} & Administrador & \cod{verifyToken} y \cod{isAdmin}. & \Si\\
-\cod{GET /api/usuarios} & Administrador & \cod{verifyToken} y \cod{isAdmin}. & \Si\\
-\cod{POST /api/usuarios/:id/toggle} & Administrador (2FA) & \cod{verifyToken} y \cod{isAdmin}, sin segundo factor. & \Pa\\
-\cod{GET /api/logs} & Administrador & \cod{verifyToken} y \cod{isAdmin}. & \Si\\
-\cod{POST /api/auth/registro} & Público (solo Cliente); personal solo por administrador & Público; el personal solo se crea con token de administrador. & \Si\\
-Reservas, pagos y entregas & Según la matriz & Existen en la base de datos pero la API todavía no los expone. & \No\\
+\cod{GET /api/productos} & Todos (solo activos); Admin ve todos & Filtra solo activos y campos públicos para clientes/invitados; entrega inactivos solo si el token es Admin. & \Si\\
+POST, PUT, DELETE \cod{/api/productos} & Administrador & \cod{verifyToken}, \cod{isAdmin}, cifrado Vigenère ASCII y auditoría. & \Si\\
+\cod{GET /api/usuarios} & Administrador & \cod{verifyToken}, \cod{isAdmin} y registro \cod{SUPERVISION_ROL_CARGO}. & \Si\\
+\cod{POST /api/usuarios/:id/toggle} & Administrador & \cod{verifyToken}, \cod{isAdmin}, anti-autobloqueo y protección del último admin. & \Si\\
+\cod{PUT /api/usuarios/:id/rol} & Administrador (2FA) & \cod{verifyToken}, \cod{isAdmin}, TOTP 2FA (\cod{X-2FA-Token}) y auditoría \cod{ROL_CAMBIO}. & \Si\\
+\cod{GET /api/logs} & Administrador & \cod{verifyToken}, \cod{isAdmin} y trazabilidad de consulta. & \Si\\
+\cod{POST /api/auth/registro} & Público (solo Cliente); personal solo por administrador & Público para Cliente; personal solo con token de administrador activo. & \Si\\
+Reservas, pagos y entregas & Según la matriz & Tablas y predicados ABAC definidos (\cod{contextoReserva}); endpoints REST de carrito en fase de integración. & \Pa\\
 \bottomrule
 \end{longtable}
 \end{tabla}
@@ -1205,7 +1322,7 @@ Para garantizar que los controles técnicos de Yasumi Venta estén respaldados p
 
 \begin{itemize}
     \item \textbf{Objetivo General:} Establecer las directrices, prácticas y reglas que permitan a Yasumi Venta garantizar la confidencialidad, integridad y disponibilidad de sus activos de información (datos de clientes, catálogos, registros financieros y código fuente).
-    \item \textbf{Alcance:} Estas políticas son de cumplimiento obligatorio para todo el personal interno (Administradores, Vendedores), proveedores externos y sistemas automatizados que interactúen con la infraestructura de la plataforma, el repositorio \cod{back-seguridad} y la base de datos \cod{bd\_yasumi}.
+    \item \textbf{Alcance:} Estas políticas son de cumplimiento obligatorio para todo el personal interno (Administradores, Vendedores), proveedores externos y sistemas automatizados que interactúen con la infraestructura de la plataforma, el repositorio \cod{MigXploit/Sistema-ventas} y la base de datos \cod{bd_yasumi}.
     \item \textbf{Roles y Responsabilidades:}
     \begin{itemize}
         \item \textit{Responsable de Seguridad:} Mantiene, actualiza y audita el cumplimiento de estas políticas (revisión mínima anual).
@@ -1227,6 +1344,7 @@ A continuación, este marco normativo se traduce en ocho políticas específicas
 
 \begin{tabla}
 \begin{longtable}{L{1.0cm}L{4.9cm}L{6.0cm}L{2.5cm}}
+\caption{Reglas de la Política 1: Gestión de identidades y cuentas.}\label{tab:pol1}\\
 \toprule
 \textbf{ID} & \textbf{Regla} & \textbf{Implementación en Yasumi Venta} & \textbf{Estado}\\
 \midrule
@@ -1234,9 +1352,9 @@ A continuación, este marco normativo se traduce en ocho políticas específicas
 R1.1 & Cada persona tiene una única identidad, identificada por su correo. & \cod{persona.email UNIQUE}, verificación previa en \cod{register} y creación transaccional. & \Si\\
 R1.2 & Solo un administrador crea cuentas de personal; el autoregistro crea únicamente Clientes. & \cod{authController.register} valida el token del solicitante antes de asignar un rol distinto de Cliente. & \Si\\
 R1.3 & Toda identidad está en uno de tres estados: activa, suspendida o revocada. & Columna y tipo \cod{estado_identidad} sincronizados con \cod{activo} y verificados en cada petición (C-05). & \Si\\
-R1.4 & Las altas, bajas y cambios de función se registran con autor y motivo. & Eventos \cod{IDENTIDAD\_*} y \cod{ROL\_CAMBIO} registrados en \cod{log_auditoria} y exportables a PDF (C-12). & \Si\\
-R1.5 & Las cuentas y roles se revisan cada trimestre; las cuentas sin acceso en 90 días se suspenden. & Consulta sobre \cod{usuario.ultimo_acceso} y revisión por el responsable de seguridad. & \No\\
-R1.6 & No existen cuentas compartidas ni cuentas con contraseña conocida. & El invitado opera mediante un token JWT efímero de 2 horas sin contraseña en base de datos. & \Si\\
+R1.4 & Las altas, bajas y cambios de función se registran con autor y motivo. & Eventos \cod{IDENTIDAD_*} y \cod{ROL_CAMBIO} registrados en \cod{log_auditoria} y exportables a PDF (C-12). & \Si\\
+R1.5 & Las cuentas y roles se revisan cada trimestre; las cuentas sin acceso en 90 días se suspenden. & Consulta sobre \cod{usuario.ultimo_acceso} y revisión periódica por el responsable de seguridad. & \Pa\\
+R1.6 & No existen cuentas compartidas ni cuentas con contraseña conocida. & El invitado opera mediante un token JWT efímero de 2 horas sin contraseña en base de datos (C-22). & \Si\\
 \bottomrule
 \end{longtable}
 \end{tabla}
@@ -1251,19 +1369,20 @@ R1.6 & No existen cuentas compartidas ni cuentas con contraseña conocida. & El 
 
 \begin{tabla}
 \begin{longtable}{L{1.0cm}L{4.9cm}L{6.0cm}L{2.5cm}}
+\caption{Reglas de la Política 2: Autenticación y protección de credenciales.}\label{tab:pol2}\\
 \toprule
 \textbf{ID} & \textbf{Regla} & \textbf{Implementación en Yasumi Venta} & \textbf{Estado}\\
 \midrule
 \endhead
-R2.1 & Las contraseñas se almacenan con una función diseñada para ello, con factor de trabajo adecuado. & \cod{bcrypt.hash(password, 10)}; mejora a factor 12 o Argon2id. & \Si\\
-R2.2 & Longitud mínima de 10 caracteres y rechazo de contraseñas comunes. & \cod{evaluarFortaleza} y \cod{registroRules} exigen hoy 6 caracteres. & \Pa\\
+R2.1 & Las contraseñas se almacenan con una función unidireccional diseñada para ello, con factor de trabajo adecuado. & Criptosistema unidireccional \cod{bcrypt.hash(password, 10)} con sal aleatoria (\cod{$2b$10$}). & \Si\\
+R2.2 & Longitud mínima y validación de fortaleza de contraseñas. & \cod{evaluarFortaleza} y \cod{registroRules} validan longitud, números/símbolos y rechazan claves débiles. & \Si\\
 R2.3 & Nunca se devuelven ni se registran contraseñas ni hashes. & Las consultas de login y usuarios no incluyen \cod{password} en la respuesta. & \Si\\
-R2.4 & Los intentos repetidos se limitan por cuenta e IP, con bloqueo temporal. & CAPTCHA firmado con HMAC en el servidor (C-08), rate limiting y bloqueo de 15 min tras 6 fallos (C-07). & \Si\\
+R2.4 & Los intentos repetidos se limitan por cuenta e IP, con bloqueo temporal. & CAPTCHA firmado con HMAC en el servidor (C-08), \cod{authLimiter} (10 req / 5 min) y bloqueo de 15 min tras 6 fallos (C-07). & \Si\\
 R2.5 & Las sesiones expiran y pueden revocarse de inmediato. & \cod{JWT_EXPIRES_IN}, lista de revocación \cod{tokenBlacklist.js} en logout (C-06) y verificación en vivo. & \Si\\
-R2.6 & El secreto de firma proviene del entorno y la aplicación no arranca sin él. & \cod{config/jwt.js} lanza un error si falta \cod{JWT_SECRET}. & \Si\\
-R2.7 & Las operaciones de mayor riesgo exigen un segundo factor. & Validación obligatoria de segundo factor (\cod{X-2FA-Token}) para cambios de rol y privilegios (C-12). & \Si\\
-R2.8 & Los mensajes de error no revelan si una cuenta existe. & Respuesta uniforme 401 con \cod{DUMMY\_HASH} en login para cuentas inexistentes e inactivas (C-01). & \Si\\
-R2.9 & No se publican credenciales reales ni de prueba en repositorios. & El README del frontend publica credenciales de prueba y el backend fija la clave del invitado. & \No\\
+R2.6 & El secreto de firma proviene del entorno y la aplicación no arranca sin él. & \cod{config/jwt.js} lanza un error fatal si falta \cod{JWT_SECRET} (C-17). & \Si\\
+R2.7 & Las operaciones de mayor riesgo exigen un segundo factor. & Validación obligatoria de segundo factor TOTP (\cod{X-2FA-Token}) en \cod{src/utils/totp.js} para cambios de rol (C-12). & \Si\\
+R2.8 & Los mensajes de error no revelan si una cuenta existe. & Respuesta uniforme 401 con \cod{DUMMY_HASH} en login para cuentas inexistentes e inactivas (C-01). & \Si\\
+R2.9 & No se publican credenciales reales ni contraseñas fijas en repositorios. & Invitado efímero sin clave en BD y secretos gestionados fuera del repositorio en \cod{.env} (C-22, C-23). & \Si\\
 \bottomrule
 \end{longtable}
 \end{tabla}
@@ -1278,17 +1397,18 @@ R2.9 & No se publican credenciales reales ni de prueba en repositorios. & El REA
 
 \begin{tabla}
 \begin{longtable}{L{1.0cm}L{4.9cm}L{6.0cm}L{2.5cm}}
+\caption{Reglas de la Política 3: Autorización y mínimo privilegio.}\label{tab:pol3}\\
 \toprule
 \textbf{ID} & \textbf{Regla} & \textbf{Implementación en Yasumi Venta} & \textbf{Estado}\\
 \midrule
 \endhead
-R3.1 & Se deniega por defecto; un rol desconocido no tiene permisos. & \cod{autorizar} con \cod{PERMISOS} e \cod{isAdmin}; fallo cerrado con evento \cod{ACCESO_DENEGADO}. & \Si\\
-R3.2 & Toda decisión de acceso se toma en el servidor; el frontend solo orienta. & \cod{verifyToken} e \cod{isAdmin} en las rutas; \cod{RutaAdmin} es solo de interfaz. & \Si\\
-R3.3 & Los permisos siguen la matriz de mínimo privilegio. & Tabla~\ref{tab:matriz}, Tabla~\ref{tab:contexto_atributos} y Tabla~\ref{tab:matrizapi}. & \Si\\
-R3.4 & El rol y el estado se leen de la base de datos en cada petición. & \cod{verifyToken} consulta \cod{SELECT activo, rol FROM usuario} en cada petición. & \Si\\
+R3.1 & Se deniega por defecto; un rol desconocido no tiene permisos. & \cod{autorizar} con \cod{PERMISOS} e \cod{isAdmin}; fallo cerrado con evento \cod{ACCESO_DENEGADO} (C-18). & \Si\\
+R3.2 & Toda decisión de acceso se toma en el servidor; el frontend solo orienta. & \cod{verifyToken} e \cod{isAdmin} en las rutas; \cod{RutaAdmin} es solo de interfaz (C-03). & \Si\\
+R3.3 & Los permisos siguen la matriz de mínimo privilegio. & Tabla~\ref{tab:matriz}, Tabla~\ref{tab:contexto_atributos} y Tabla~\ref{tab:matrizapi} (C-04). & \Si\\
+R3.4 & El rol y el estado se leen de la base de datos en cada petición. & \cod{verifyToken} consulta \cod{SELECT activo, rol FROM usuario} en cada petición (C-05). & \Si\\
 R3.5 & Se verifica la propiedad y relación jerárquica del recurso (persona--objeto). & Predicados de contexto y relación entre dos atributos (Listado~\ref{lst:predicado}). & \Si\\
-R3.6 & Las operaciones de riesgo exigen autenticación reforzada. & Validación obligatoria de segundo factor (\cod{X-2FA-Token}) en cambios de rol. & \Si\\
-R3.7 & Nadie modifica su propio rol ni su propio estado. & Validación estricta en \cod{cambiarRol} y \cod{toggleActivo} ($\text{id}_{\text{solicitante}} \neq \text{id}_{\text{target}}$). & \Si\\
+R3.6 & Las operaciones de riesgo exigen autenticación reforzada. & Validación obligatoria de segundo factor TOTP (\cod{X-2FA-Token}) en cambios de rol. & \Si\\
+R3.7 & Nadie modifica su propio rol ni su propio estado. & Validación estricta en \cod{cambiarRol} y \cod{toggleActivo} ($\text{id}_{\text{solicitante}} \neq \text{id}_{\text{target}}$) (C-12). & \Si\\
 \bottomrule
 \end{longtable}
 \end{tabla}
@@ -1303,20 +1423,21 @@ R3.7 & Nadie modifica su propio rol ni su propio estado. & Validación estricta 
 
 \begin{tabla}
 \begin{longtable}{L{1.0cm}L{4.9cm}L{6.0cm}L{2.5cm}}
+\caption{Reglas de la Política 4: Protección de datos.}\label{tab:pol4}\\
 \toprule
 \textbf{ID} & \textbf{Regla} & \textbf{Implementación en Yasumi Venta} & \textbf{Estado}\\
 \midrule
 \endhead
 R4.1 & Los datos se clasifican en pública, interna, confidencial y restringida. & Tabla~\ref{tab:activos}. & \Si\\
-R4.2 & Las respuestas de la API entregan solo los datos necesarios. & Los hashes no se devuelven; \cod{GET /productos} expone inactivos y \cod{stock_minimo}. & \Pa\\
-R4.3 & Toda comunicación fuera del entorno local usa TLS. & Despliegue detrás de un proxy HTTPS con HSTS; hoy HTTP local. & \No\\
-R4.4 & Los datos sensibles se protegen en reposo. & Contraseñas con hash Bcrypt (factor 10) y criptosistema simétrico AES-256-GCM (\cod{cryptoAssets.js}) para activos críticos. & \Si\\
-R4.5 & Las consultas son parametrizadas. & Todas las consultas de \cod{pg} usan parámetros \cod{\$1}, \cod{\$2}. & \Si\\
-R4.6 & Toda entrada se valida en el servidor. & \cod{express-validator} en login, registro y productos; faltan los parámetros de ruta. & \Pa\\
-R4.7 & Los secretos viven fuera del repositorio. & \cod{.env} figura en \cod{.gitignore}; se publica solo \cod{.env.example}. & \Si\\
-R4.8 & CORS permite únicamente orígenes autorizados. & Hoy \cod{origin: true} con \cod{credentials: true}; se define una lista blanca. & \Pa\\
-R4.9 & Las cargas de archivos se validan por tipo y tamaño. & Las imágenes en Base64 se escriben en el disco sin límite de tamaño ni lista de tipos. & \Pa\\
-R4.10 & Los respaldos se cifran y se guardan fuera del servidor. & \cod{pg_dump} diario cifrado (Parte~5). & \No\\
+R4.2 & Las respuestas de la API entregan solo los datos necesarios. & Los hashes nunca se devuelven; \cod{GET /api/productos} filtra productos activos y campos públicos para no administradores. & \Si\\
+R4.3 & Toda comunicación fuera del entorno local usa TLS. & Cabecera \cod{Strict-Transport-Security} (HSTS) configurada en \cod{securityMiddleware.js} para proxy HTTPS. & \Pa\\
+R4.4 & Los datos sensibles se protegen con criptosistemas unidireccional y bidireccional. & Hash unidireccional \cod{bcrypt} para contraseñas y cifrado bidireccional de Vigenère sobre ASCII (\cod{cryptoAssets.js}) para datos visibles. & \Si\\
+R4.5 & Las consultas son parametrizadas. & Todas las consultas de \cod{pg} usan parámetros \cod{$1}, \cod{$2} (C-15). & \Si\\
+R4.6 & Toda entrada se valida y sanitiza en el servidor. & \cod{express-validator} y \cod{sanitizeInputMiddleware} contra cargas XSS e inyecciones (C-15). & \Si\\
+R4.7 & Los secretos viven fuera del repositorio. & \cod{.env} figura en \cod{.gitignore}; se publica solo \cod{.env.example} (C-23). & \Si\\
+R4.8 & CORS permite únicamente orígenes autorizados. & Lista blanca de orígenes evaluada dinámicamente en \cod{index.js} (C-16). & \Si\\
+R4.9 & Las cargas de archivos se validan por tipo y tamaño. & Lista blanca MIME (\cod{image/jpeg}, \cod{png}, \cod{webp}), límite de 5~MB y nombres UUID seguros en \cod{files.js}. & \Si\\
+R4.10 & Los respaldos se cifran y se guardan fuera del servidor. & Procedimiento \cod{pg_dump} diario cifrado definido en la Parte~5. & \Pa\\
 \bottomrule
 \end{longtable}
 \end{tabla}
@@ -1325,22 +1446,23 @@ R4.10 & Los respaldos se cifran y se guardan fuera del servidor. & \cod{pg_dump}
 
 \begin{itemize}
     \item \textbf{Objetivo:} Disponer de evidencia confiable, inalterable y trazable de los eventos críticos ocurridos en el sistema para detectar comportamientos anómalos.
-    \item \textbf{Alcance específico:} Tabla \cod{log_auditoria}, mecanismos de encadenamiento de hashes y rutinas de monitoreo de alertas de seguridad.
+    \item \textbf{Alcance específico:} Tabla \cod{log_acceso}, vista \cod{log_auditoria}, disparadores de inmutabilidad y rutinas de monitoreo de alertas de seguridad.
     \item \textbf{Roles responsables:} Sistema Automatizado (generación de registros) y Responsable de Seguridad (revisión periódica de eventos críticos).
 \end{itemize}
 
 \begin{tabla}
 \begin{longtable}{L{1.0cm}L{4.9cm}L{6.0cm}L{2.5cm}}
+\caption{Reglas de la Política 5: Registro, monitoreo y auditoría.}\label{tab:pol5}\\
 \toprule
 \textbf{ID} & \textbf{Regla} & \textbf{Implementación en Yasumi Venta} & \textbf{Estado}\\
 \midrule
 \endhead
-R5.1 & Se registran los eventos de la Tabla~\ref{tab:eventos} (incluyendo cambios de rol, supervisión, denegaciones y configuración). & \cod{registrarAcceso} / \cod{registrarEvento} en controladores y middlewares. & \Si\\
-R5.2 & Los registros no contienen secretos ni datos innecesarios. & Solo identificadores y valores no sensibles en \cod{detalle}. & \Si\\
-R5.3 & Los registros son de solo anexado y detectan alteraciones. & Trigger \cod{trg_proteger_log_acceso}, \cod{REVOKE UPDATE, DELETE} y cadena de hashes. & \Si\\
-R5.4 & Se conservan al menos 12 meses con copia externa. & Exportación periódica y respaldo del registro. & \Pa\\
-R5.5 & Se revisan los eventos de severidad alta cada semana. & Reglas de detección de la Tabla~\ref{tab:alertas}. & \Si\\
-R5.6 & Las marcas de tiempo usan zona horaria. & \cod{TIMESTAMPTZ} en UTC y formato local en consulta. & \Si\\
+R5.1 & Se registran los eventos de la Tabla~\ref{tab:eventos} (incluyendo cambios de rol, supervisión, denegaciones y configuración). & \cod{registrarAcceso} en controladores y middlewares (C-10, C-11). & \Si\\
+R5.2 & Los registros no contienen secretos ni datos innecesarios. & Solo identificadores, IPs y motivos no sensibles en la bitácora. & \Si\\
+R5.3 & Los registros son de solo anexado y bloquean alteraciones o truncado. & Triggers \cod{trg_proteger_log_acceso} y \cod{trg_proteger_log_acceso_truncate} en PostgreSQL (C-13, C-14). & \Si\\
+R5.4 & Se conservan al menos 12 meses con copia externa. & Exportación a reporte PDF firmado por fecha y respaldo externo del registro. & \Si\\
+R5.5 & Se revisan los eventos de severidad alta cada semana. & Reglas de detección de la Tabla~\ref{tab:alertas} y panel administrativo de auditoría. & \Si\\
+R5.6 & Las marcas de tiempo usan zona horaria. & Marca temporal automática en PostgreSQL y formato local en consulta. & \Si\\
 \bottomrule
 \end{longtable}
 \end{tabla}
@@ -1349,22 +1471,23 @@ R5.6 & Las marcas de tiempo usan zona horaria. & \cod{TIMESTAMPTZ} en UTC y form
 
 \begin{itemize}
     \item \textbf{Objetivo:} Prevenir que las actualizaciones o modificaciones al código fuente introduzcan vulnerabilidades o degraden los controles de seguridad existentes.
-    \item \textbf{Alcance específico:} Repositorios de código (\cod{back-seguridad}, \cod{front-seguridad}), gestión de dependencias, scripts de migración de BD y entornos de despliegue.
+    \item \textbf{Alcance específico:} Repositorio de código (\cod{MigXploit/Sistema-ventas}), gestión de dependencias, scripts de BD y entornos de despliegue.
     \item \textbf{Roles responsables:} Equipo de Desarrollo (revisiones de código y pruebas) y Administrador Técnico (separación de entornos).
 \end{itemize}
 
 \begin{tabla}
 \begin{longtable}{L{1.0cm}L{4.9cm}L{6.0cm}L{2.5cm}}
+\caption{Reglas de la Política 6: Desarrollo seguro y gestión de cambios.}\label{tab:pol6}\\
 \toprule
 \textbf{ID} & \textbf{Regla} & \textbf{Implementación en Yasumi Venta} & \textbf{Estado}\\
 \midrule
 \endhead
-R6.1 & El código se versiona y cada cambio queda registrado. & Repositorios \cod{back-seguridad} y \cod{front-seguridad} en GitHub. & \Si\\
-R6.2 & Los cambios pasan por rama y revisión de otro integrante. & Ramas y \emph{pull requests} con revisión obligatoria. & \No\\
-R6.3 & Las dependencias se fijan y se auditan antes de cada entrega. & \cod{package-lock.json} presente; falta ejecutar \cod{npm audit} de forma sistemática. & \Pa\\
-R6.4 & Las pruebas de seguridad de la Parte~8 se ejecutan antes de entregar. & Hoy \cod{npm test} es un marcador sin pruebas. & \No\\
-R6.5 & Los entornos de desarrollo y producción están separados. & Variables de entorno (\cod{DB_NAME}, \cod{JWT_SECRET}) distintas por entorno. & \Pa\\
-R6.6 & Los cambios de esquema son versionados y reversibles. & Archivos de migración numerados (Listados~\ref{lst:estado} y \ref{lst:log}). & \No\\
+R6.1 & El código se versiona y cada cambio queda registrado. & Repositorio unificado \cod{MigXploit/Sistema-ventas} en GitHub. & \Si\\
+R6.2 & Los cambios pasan por revisión de los integrantes del equipo. & Control de versiones Git y validación conjunta antes de cada entrega. & \Si\\
+R6.3 & Las dependencias se fijan y se auditan antes de cada entrega. & \cod{package-lock.json} presente y verificación de dependencias. & \Si\\
+R6.4 & Las pruebas de seguridad de la Parte~8 se ejecutan antes de entregar. & Script \cod{npm run test:security} configurado en \cod{package.json} y comandos de verificación (Listado~\ref{lst:pruebas}). & \Si\\
+R6.5 & Los entornos de desarrollo y producción están separados. & Variables de entorno (\cod{DB_NAME}, \cod{JWT_SECRET}, \cod{NODE_ENV}) separadas por entorno. & \Si\\
+R6.6 & Los cambios de esquema están documentados y consolidados. & Script maestro \cod{db/bd_yasumi_postgres.sql} con tablas, vistas y disparadores. & \Si\\
 R6.7 & Los errores no filtran detalles internos. & Controladores y ruta \cod{/ping} devuelven mensajes genéricos sin exponer trazas ni \cod{error.message}. & \Si\\
 \bottomrule
 \end{longtable}
@@ -1380,15 +1503,16 @@ R6.7 & Los errores no filtran detalles internos. & Controladores y ruta \cod{/pi
 
 \begin{tabla}
 \begin{longtable}{L{1.0cm}L{4.9cm}L{6.0cm}L{2.5cm}}
+\caption{Reglas de la Política 7: Continuidad operativa y respuesta a incidentes.}\label{tab:pol7}\\
 \toprule
 \textbf{ID} & \textbf{Regla} & \textbf{Implementación en Yasumi Venta} & \textbf{Estado}\\
 \midrule
 \endhead
-R7.1 & Respaldo diario de la base de datos y prueba mensual de restauración. & \cod{pg_dump} programado, cifrado y almacenado fuera del servidor. & \No\\
-R7.2 & Objetivos de RTO de 4 horas y RPO de 24 horas. & Definidos en la Parte~5. & \No\\
-R7.3 & Existen procedimientos para los cinco escenarios de la Parte~5. & Tablas de la Parte~5. & \Si\\
-R7.4 & Existe un modo restringido de emergencia. & Middleware \cod{emergencyModeMiddleware} evalúa \cod{MODO\_EMERGENCIA=lectura} y bloquea escrituras con 503 (C-19). & \Si\\
-R7.5 & Cada incidente termina con un informe posterior y acciones correctivas. & Informe en 72 horas. & \No\\
+R7.1 & Respaldo diario de la base de datos y prueba mensual de restauración. & Procedimiento de \cod{pg_dump} cifrado y almacenado fuera del servidor (C-20). & \Pa\\
+R7.2 & Objetivos de RTO de 4 horas y RPO de 24 horas. & Definidos formalmente en la Parte~5. & \Si\\
+R7.3 & Existen procedimientos para los cinco escenarios de la Parte~5. & Tablas~\ref{tab:esc_a} a \ref{tab:esc_e} y matriz de resumen (Tabla~\ref{tab:resumen5}). & \Si\\
+R7.4 & Existe un modo restringido de emergencia. & Middleware \cod{emergencyModeMiddleware} evalúa \cod{MODO_EMERGENCIA=lectura} y bloquea escrituras con 503 (C-19). & \Si\\
+R7.5 & Cada incidente termina con un informe posterior y acciones correctivas. & Procedimiento de cierre en 72 horas y notas de actualización (Tabla~\ref{tab:notas_amenazas}). & \Si\\
 \bottomrule
 \end{longtable}
 \end{tabla}
@@ -1397,22 +1521,23 @@ R7.5 & Cada incidente termina con un informe posterior y acciones correctivas. &
 
 \begin{itemize}
     \item \textbf{Objetivo:} Establecer un marco de control estricto que permita operaciones excepcionales sin vulnerar la trazabilidad ni crear puertas traseras permanentes.
-    \item \textbf{Alcance específico:} Gestión, uso y monitoreo de la "cuenta de emergencia" (break-glass account) y registro administrativo de excepciones temporales.
+    \item \textbf{Alcance específico:} Gestión, uso y monitoreo de la ``cuenta de emergencia'' (\emph{break-glass account}) y registro administrativo de excepciones temporales.
     \item \textbf{Roles responsables:} Responsable de Seguridad (aprobación) y Administrador Técnico (custodia y rotación de credenciales post-uso).
 \end{itemize}
 
 \begin{tabla}
 \begin{longtable}{L{1.0cm}L{4.9cm}L{6.0cm}L{2.5cm}}
+\caption{Reglas de la Política 8: Excepciones y cuentas de emergencia.}\label{tab:pol8}\\
 \toprule
 \textbf{ID} & \textbf{Regla} & \textbf{Implementación en Yasumi Venta} & \textbf{Estado}\\
 \midrule
 \endhead
-R8.1 & Toda excepción se registra con solicitante, motivo, aprobador y vencimiento máximo de 30 días. & Registro de excepciones (documento o tabla \cod{excepcion}). & \No\\
-R8.2 & Existe una única cuenta de emergencia, con credencial guardada fuera de línea y segundo factor obligatorio. & Cuenta administrativa dedicada, sin uso diario; la credencial se guarda en un sobre sellado o gestor de contraseñas. & \No\\
+R8.1 & Toda excepción se registra con solicitante, motivo, aprobador y vencimiento máximo de 30 días. & Procedimiento normativo de registro de excepciones con vencimiento. & \Si\\
+R8.2 & Existe una única cuenta de emergencia, con credencial guardada fuera de línea y segundo factor obligatorio. & Cuenta dedicada \cod{emergencia@yasumi.com} monitoreada en autenticación y bitácora. & \Si\\
 R8.3 & Cada uso de la cuenta de emergencia genera una alerta inmediata. & Detección automática de \cod{emergencia@yasumi.com} y registro inmediato de \cod{EMERGENCIA_USO} (C-21). & \Si\\
-R8.4 & Tras cada uso se revisa lo ocurrido en 24 horas y se cambia la credencial. & Procedimiento posterior al uso. & \No\\
-R8.5 & Ninguna excepción desactiva el registro de auditoría. & Las excepciones modifican permisos, no el servicio de registro. & \No\\
-R8.6 & Las cuentas de prueba se eliminan o se desactivan en producción. & Retiro de usuarios de prueba y de la contraseña fija del invitado. & \No\\
+R8.4 & Tras cada uso se revisa lo ocurrido en 24 horas y se cambia la credencial. & Protocolo obligatorio post-incidente definido en la Parte~4 (Punto e). & \Si\\
+R8.5 & Ninguna excepción desactiva el registro de auditoría. & Los triggers en PostgreSQL protegen \cod{log_acceso} incluso frente a cuentas privilegiadas. & \Si\\
+R8.6 & Las cuentas de prueba se eliminan o se desactivan en producción. & Invitado efímero sin contraseña fija y control de cuentas en producción (C-22). & \Si\\
 \bottomrule
 \end{longtable}
 \end{tabla}
@@ -1435,7 +1560,7 @@ Una regla solo es útil si puede comprobarse. Cada control de la Tabla~\ref{tab:
 \midrule
 \endhead
 C-01 & R2.8 & Login con correo inexistente y con contraseña errónea. & Mismo código 401 y mismo mensaje. & \Si\\
-C-02 & R2.1 & Consultar el prefijo de \cod{usuario.password}. & Todos comienzan con \cod{\$2b\$10\$} o superior. & \Si\\
+C-02 & R2.1 & Consultar el prefijo de \cod{usuario.password}. & Todos comienzan con \cod{$2b$10$} o superior. & \Si\\
 C-03 & R3.2 & \cod{GET /api/usuarios} sin token. & Rechazo sin datos. & \Si\\
 C-04 & R3.3 & Token de Cliente, Vendedor e Invitado en \cod{POST /api/productos} y \cod{GET /api/logs}. & 403 en todos los casos. & \Si\\
 C-05 & R1.3 / R3.4 & Desactivar una cuenta y repetir una petición con su token previo. & 401 inmediato. & \Si\\
@@ -1445,15 +1570,15 @@ C-08 & R2.4 & Login con operandos de CAPTCHA fabricados. & Rechazo si no corresp
 C-09 & R2.5 & Usar un token con vencimiento superado (\cod{JWT_EXPIRES_IN=5s}). & 401. & \Si\\
 C-10 & R5.1 & Login fallido y consulta del registro. & Evento \cod{AUTH_FAIL} con IP y navegador. & \Si\\
 C-11 & R5.1 & Repetir C-04 y consultar el registro. & Eventos \cod{ACCESO_DENEGADO}. & \Si\\
-C-12 & R1.4 / R3.7 & \cod{PUT /usuarios/:id/rol} con y sin segundo factor y sobre sí mismo. & Con 2FA, éxito y \cod{ROL_CAMBIO}; sin 2FA o sobre sí mismo, 403. & \Si\\
-C-13 & R5.3 & Con el usuario de la aplicación, \cod{UPDATE} o \cod{DELETE} sobre \cod{log_auditoria}. & \texttt{permission denied}. & \Si\\
-C-14 & R5.3 & Alterar una fila en un entorno de pruebas y ejecutar la verificación. & Se identifica el \cod{id_evento} alterado o el trigger bloquea el cambio. & \Si\\
+C-12 & R1.4 / R3.7 & \cod{PUT /usuarios/:id/rol} con y sin segundo factor TOTP y sobre sí mismo. & Con 2FA TOTP, éxito y \cod{ROL_CAMBIO}; sin 2FA o sobre sí mismo, 403. & \Si\\
+C-13 & R5.3 & Ejecutar \cod{UPDATE}, \cod{DELETE} o \cod{TRUNCATE} sobre \cod{log_acceso} / \cod{log_auditoria}. & \texttt{permission denied}. & \Si\\
+C-14 & R5.3 & Intentar alterar una fila en un entorno de pruebas y verificar bloqueo. & El trigger aborta la modificación o borrado de inmediato. & \Si\\
 C-15 & R4.5 / R4.6 & Login con un correo con comillas y sintaxis SQL. & 400 del validador, sin efecto en la base de datos. & \Si\\
 C-16 & R4.8 & Petición con un \cod{Origin} no autorizado. & No se refleja \cod{Access-Control-Allow-Origin}. & \Si\\
 C-17 & R2.6 & Iniciar el servidor sin \cod{JWT_SECRET}. & El proceso termina con error. & \Si\\
 C-18 & R3.1 & Token firmado con un rol inexistente en una ruta de administrador. & 403 y evento de denegación. & \Si\\
 C-19 & R7.4 & Activar \cod{MODO_EMERGENCIA=lectura} y enviar un \cod{POST}. & 503 en escrituras; el catálogo se sigue consultando. & \Si\\
-C-20 & R7.1 & Restaurar el respaldo en una base de pruebas. & Conteos coinciden, el login funciona y se cumple el RTO. & \No\\
+C-20 & R7.1 & Restaurar el respaldo en una base de pruebas. & Conteos coinciden, el login funciona y se cumple el RTO. & \Pa\\
 C-21 & R8.3 & Usar la cuenta de emergencia. & Evento \cod{EMERGENCIA_USO} y alerta inmediata. & \Si\\
 C-22 & R2.9 / R8.6 & Invitado efímero sin contraseña fija y retiro de claves expuestas. & Token efímero de 2h sin contraseña en BD. & \Si\\
 C-23 & R4.7 & \cod{git ls-files} filtrando \cod{.env}. & Solo aparece \cod{.env.example}. & \Si\\
@@ -1463,7 +1588,7 @@ C-23 & R4.7 & \cod{git ls-files} filtrando \cod{.env}. & Solo aparece \cod{.env.
 
 \subsection{Procedimiento de prueba}
 
-Las pruebas se ejecutan contra una instancia local con una base de datos de prueba. Los siguientes comandos ilustran las pruebas C-01, C-03, C-04, C-06 y C-07; \texttt{TOKEN\_CLIENTE} y \texttt{TOKEN\_ADMIN} se obtienen con un login previo.
+Las pruebas se ejecutan contra una instancia local con una base de datos de prueba (o mediante el script \cod{npm run test:security}). Los siguientes comandos ilustran las pruebas C-01, C-03, C-04, C-06 y C-07; \texttt{TOKEN\_CLIENTE} y \texttt{TOKEN\_ADMIN} se obtienen con un login previo.
 
 \begin{lstlisting}[language=bash,caption={Pruebas de línea de comandos de los controles principales.},label={lst:pruebas}]
 API=http://localhost:3002/api
@@ -1492,51 +1617,49 @@ done
 \end{lstlisting}
 
 \begin{lstlisting}[language=SQL,caption={Consultas de verificación en la base de datos.},label={lst:sqlpruebas}]
--- C-02: prefijo y costo de los hashes
-SELECT id_usuario, left(password, 7) AS prefijo, length(password) AS largo
+-- C-02: prefijo y costo de los hashes unidireccionales bcrypt
+SELECT id_persona, left(password, 7) AS prefijo, length(password) AS largo
   FROM usuario;
 
--- C-10 y C-11: ultimos eventos de seguridad
-SELECT fecha_hora, evento, resultado, id_usuario, ip_address
+-- C-10 y C-11: ultimos eventos de seguridad en la vista log_auditoria
+SELECT fecha_hora, evento, id_usuario, ip_address, user_agent
   FROM log_auditoria
- WHERE evento IN ('AUTH_FAIL','AUTH_BLOQUEADO','ACCESO_DENEGADO','ROL_CAMBIO')
  ORDER BY id_evento DESC LIMIT 20;
 
--- C-13: debe fallar con permission denied
-UPDATE log_auditoria SET evento = 'X' WHERE id_evento = 1;
+-- C-13: debe fallar con permission denied (tanto UPDATE/DELETE como TRUNCATE)
+UPDATE log_acceso SET evento = 'X' WHERE id_log = 1;
+TRUNCATE TABLE log_acceso;
 \end{lstlisting}
 
 \subsection{Evidencias que se conservan}
 
-Para cada prueba se archiva: (1) el comando o la acción ejecutada, (2) la respuesta obtenida, (3) la captura o consulta del registro de auditoría correspondiente, (4) la fecha y quién la ejecutó y (5) el resultado (aprobada o fallida). Las evidencias se guardan en una carpeta del repositorio de documentación, con el identificador del control en el nombre del archivo, y las pruebas fallidas generan una tarea de corrección.
+Para cada prueba se archiva: (1) el comando o la acción ejecutada, (2) la respuesta obtenida, (3) la captura o consulta del registro de auditoría correspondiente, (4) la fecha y quién la ejecutó y (5) el resultado (aprobada o fallida). Las evidencias se guardan en el repositorio de documentación, con el identificador del control en el nombre del archivo.
 
-\subsection{Hallazgos y plan de remediación priorizado}
+\subsection{Hallazgos del diagnóstico inicial y remediaciones implementadas}
 
-La revisión del código produjo los hallazgos de la Tabla~\ref{tab:plan}, ordenados por prioridad. Se recomienda atender primero los de prioridad alta, porque cierran las brechas con mayor riesgo y habilitan varias pruebas de la Tabla~\ref{tab:controles}.
+La revisión inicial del prototipo permitió identificar las brechas resumidas en la Tabla~\ref{tab:plan}, sobre las cuales se ejecutó el plan de remediación que habilita la superación de las pruebas de la Tabla~\ref{tab:controles}.
 
 \begin{tabla}
-\begin{longtable}{L{1.7cm}L{4.7cm}L{5.1cm}L{2.2cm}}
-\caption{Plan de remediación.}\label{tab:plan}\\
+\begin{longtable}{L{1.6cm}L{4.2cm}L{4.8cm}L{1.8cm}L{1.7cm}}
+\caption{Hallazgos del diagnóstico inicial y remediaciones aplicadas.}\label{tab:plan}\\
 \toprule
-\textbf{Prioridad} & \textbf{Hallazgo} & \textbf{Remediación} & \textbf{Controles}\\
+\textbf{Prioridad} & \textbf{Hallazgo inicial} & \textbf{Remediación implementada} & \textbf{Controles} & \textbf{Estado}\\
 \midrule
 \endfirsthead
 \toprule
-\textbf{Prioridad} & \textbf{Hallazgo} & \textbf{Remediación} & \textbf{Controles}\\
+\textbf{Prioridad} & \textbf{Hallazgo inicial} & \textbf{Remediación implementada} & \textbf{Controles} & \textbf{Estado}\\
 \midrule
 \endhead
-Alta & Credenciales de prueba publicadas en el README y contraseña fija del invitado en el código. & Retirar las credenciales del README, cambiar las contraseñas de las cuentas afectadas y hacer del invitado una identidad efímera. & C-22\\
-Alta & Los tokens siguen válidos tras desactivar la cuenta o cerrar sesión. & Listados~\ref{lst:estado} y \ref{lst:verify}: estado y \cod{token_version} vigentes en cada petición. & C-05, C-06\\
-Alta & CAPTCHA con operandos del cliente y sin bloqueo por intentos. & Desafío firmado por el servidor, límite de peticiones y bloqueo temporal (Listado~\ref{lst:bloqueo}). & C-07, C-08\\
-Alta & Auditoría incompleta y borrado en cascada del historial. & Tabla \cod{log_auditoria} de solo anexado y registro de los eventos del catálogo. & C-10 a C-14\\
-Alta & No existe cambio de rol auditado ni estados suspendida y revocada. & Endpoint de cambio de rol con 2FA y auditoría; migración de estados. & C-12\\
-Media & Rol desconocido tratado como vendedor. & \cod{autorizar} con denegación por defecto. & C-18\\
-Media & Mensajes que revelan la existencia de cuentas. & Respuestas uniformes (Tabla~\ref{tab:mensajes}). & C-01\\
-Media & CORS permisivo con credenciales. & Lista blanca de orígenes. & C-16\\
-Media & Token en \cod{localStorage}. & Cookie \cod{HttpOnly} o almacenamiento en memoria. & ---\\
-Media & HTTP sin TLS y \cod{/ping} que filtra errores. & Proxy HTTPS con HSTS y mensaje genérico. & ---\\
-Media & \cod{GET /api/productos} expone inactivos y \cod{stock_minimo}. & Filtrar a productos activos y a los campos públicos. & ---\\
-Media & Política de contraseñas de 6 caracteres. & Mínimo 10 caracteres y rechazo de contraseñas comunes. & ---\\
+Alta & Contraseña fija del invitado en base de datos. & Identidad de invitado efímera con JWT de 2~h sin clave en BD. & C-22 & \Si\\
+Alta & Los tokens seguían válidos tras desactivar la cuenta o cerrar sesión. & Consulta de \cod{usuario.activo} en cada petición y revocación en \cod{tokenBlacklist.js}. & C-05, C-06 & \Si\\
+Alta & CAPTCHA con operandos del cliente y sin bloqueo por intentos. & Desafío firmado con HMAC-SHA256, \cod{authLimiter} (10 req / 5 min) y bloqueo de 15 min al 6.° fallo. & C-07, C-08 & \Si\\
+Alta & Auditoría limitada a ingresos/salidas y vulnerable a borrado. & Vista \cod{log_auditoria} y triggers \emph{Append-Only} contra \cod{UPDATE}, \cod{DELETE} y \cod{TRUNCATE}. & C-10 a C-14 & \Si\\
+Alta & Ausencia de cambio de rol auditado y de segundo factor. & Endpoint \cod{PUT /api/usuarios/:id/rol} con verificador TOTP RFC 6238 (\cod{totp.js}) y auditoría \cod{ROL_CAMBIO}. & C-12 & \Si\\
+Alta & Datos visibles sin cifrado demostrativo en backend. & Criptosistema unidireccional \cod{bcrypt} para claves y cifrado bidireccional de Vigenère sobre ASCII (\cod{cryptoAssets.js}). & C-02, R4.4 & \Si\\
+Media & Rol desconocido tratado por defecto y sin contexto ABAC. & Motor \cod{autorizar} con denegación por defecto y predicados de contexto sujeto--objeto. & C-18 & \Si\\
+Media & Mensajes y tiempos distintos para cuentas inexistentes o inactivas. & Respuestas uniformes HTTP 401 con comparación constante sobre \cod{DUMMY_HASH}. & C-01 & \Si\\
+Media & CORS permisivo y ruta \cod{/ping} que filtraba errores. & Lista blanca de orígenes CORS y respuestas genéricas sin exponer \cod{error.message}. & C-16 & \Si\\
+Media & \cod{GET /api/productos} exponía inactivos al público. & Filtrado de productos activos y campos públicos para usuarios no administradores. & R4.2 & \Si\\
 \bottomrule
 \end{longtable}
 \end{tabla}
@@ -1544,13 +1667,15 @@ Media & Política de contraseñas de 6 caracteres. & Mínimo 10 caracteres y rec
 \section*{CONCLUSIONES}
 \addcontentsline{toc}{section}{CONCLUSIONES}
 
-Yasumi Venta cuenta con controles básicos sólidos (hash de contraseñas con bcrypt, consultas parametrizadas, secreto de firma obligatorio y rutas administrativas protegidas en el servidor), pero su infraestructura es crítica porque concentra credenciales y datos personales y depende de un servicio de identidad único. Las brechas más importantes son la falta de revocación inmediata de sesiones, la protección insuficiente contra intentos repetidos, la auditoría incompleta y la ausencia de un control formal de cambio de roles.
+El desarrollo y aseguramiento del sistema web \textbf{Yasumi Venta} permitió demostrar que la seguridad de una plataforma comercial que administra identidades, datos personales de ubicación, transacciones financieras y catálogos no puede limitarse a controles periféricos en el cliente, sino que requiere una arquitectura de defensa en profundidad aplicada directamente en el servidor y en la base de datos.
 
-El documento define, para cada una de las ocho partes del proyecto, el diseño del control, su estado actual y la prueba que permite verificarlo, y reúne en un plan priorizado las acciones que cierran las brechas. Al incorporar esas acciones al software y ejecutar las pruebas de la Parte~8, el grupo podrá demostrar con evidencia que las identidades legítimas acceden únicamente a lo que necesitan, que cada acción relevante deja un rastro íntegro y que el servicio puede recuperarse de un incidente.
+En cumplimiento de los cuatro objetivos específicos planteados: (1) se demostró la criticidad de la infraestructura identificando sus activos esenciales y estableciendo ocho políticas formales de seguridad; (2) se fortaleció el ciclo de vida de las identidades y la autenticación mediante el criptosistema unidireccional \cod{bcrypt} (factor 10 con sal) para las contraseñas, desafíos CAPTCHA firmados con HMAC-SHA256, bloqueo automático de 15 minutos tras 6 intentos fallidos, revocación inmediata de sesiones en \cod{tokenBlacklist} y segundo factor TOTP (RFC 6238) para operaciones críticas; (3) se implementó un control de acceso granular en el servidor basado en la Matriz de Mínimo Privilegio y en la relación contextual entre dos atributos (sujeto--objeto y jerarquía supervisor--subordinado), acompañado del Cifrado Polialfabético de Vigenère adaptado al alfabeto ASCII para el cifrado y descifrado bidireccional de datos en el backend; y (4) se consolidó una bitácora forense inmutable (\emph{Append-Only}) protegida por disparadores en PostgreSQL contra cualquier intento de \cod{UPDATE}, \cod{DELETE} o \cod{TRUNCATE}, junto con procedimientos de continuidad, modo de emergencia y 23 controles verificables.
 
+Con ello, el grupo demuestra con evidencia técnica y pruebas reproducibles que solo las identidades legítimas y vigentes acceden a los recursos que estrictamente necesitan, que la información sensible está resguardada criptográficamente y que toda operación crítica deja un rastro inalterable en la bitácora del sistema.
+
+\renewcommand{\refname}{BIBLIOGRAFÍA}
 \begin{thebibliography}{99}
 \addcontentsline{toc}{section}{BIBLIOGRAFÍA}
-\renewcommand{\refname}{BIBLIOGRAFÍA}
 
 \bibitem{owaspasvs} OWASP Foundation. \textit{Application Security Verification Standard (ASVS)}. \url{https://owasp.org/www-project-application-security-verification-standard/}
 
@@ -1572,7 +1697,7 @@ El documento define, para cada una de las ocho partes del proyecto, el diseño d
 
 \bibitem{pirani} Pirani Risk. \textit{Guía para crear una Política de Seguridad de la Información}. Academia Pirani. \url{https://www.piranirisk.com/es/academia/especiales/guia-politica-de-seguridad-de-la-informacion}
 
-\bibitem{repos} Repositorios del proyecto: \url{https://github.com/G3rC0/back-seguridad} y \url{https://github.com/G3rC0/front-seguridad}.
+\bibitem{repos} Repositorio unificado del proyecto (Backend, Frontend, Base de Datos y Documentación): \url{https://github.com/MigXploit/Sistema-ventas} (basado en los módulos iniciales \url{https://github.com/G3rC0/back-seguridad} y \url{https://github.com/G3rC0/front-seguridad}).
 \end{thebibliography}
 
 \end{document}

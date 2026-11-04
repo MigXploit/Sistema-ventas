@@ -130,7 +130,7 @@ export const login = async (req, res) => {
             return res.status(401).json({ error: 'Credenciales inválidas. Por favor verifique su correo y contraseña.' });
         }
 
-        // 4. Contrastar contraseña
+        // 4. Contrastar contraseña mediante función de derivación unidireccional Bcrypt
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
             // C-07 y C-10: Auditoría de fallo de credenciales (AUTH_FAIL) y bloqueo si llega a 6
@@ -211,7 +211,8 @@ export const register = async (req, res) => {
             return res.status(400).json({ error: 'El correo electrónico ya se encuentra registrado en la plataforma.' });
         }
 
-        // 3. Encriptar contraseña con salt cost 10
+        // 3. Derivación unidireccional de contraseña (no se muestra ni desencripta):
+        // Se almacena exclusivamente mediante hash Bcrypt con sal aleatoria y factor de trabajo 10
         const passwordHash = await bcrypt.hash(password, 10);
 
         // 4. Determinar rol (Prevenir escalamiento de privilegios vertical)

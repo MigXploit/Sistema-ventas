@@ -9,7 +9,8 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --input-type=module -e \"import { cifrarVigenereASCII, descifrarVigenereASCII } from './src/utils/cryptoAssets.js'; import { generarTOTP, verificarCodigo2FA } from './src/utils/totp.js'; const msg = 'Ramo de Rosas Ñandú #1'; const c = cifrarVigenereASCII(msg); const d = descifrarVigenereASCII(c); if (d !== msg) throw new Error('Fallo Vigenere'); const t = generarTOTP(); if (!verificarCodigo2FA(t)) throw new Error('Fallo TOTP'); console.log('OK: Vigenere ASCII y TOTP 2FA verificados:', { original: msg, cifrado: c, descifrado: d, totp: t });\"",
+    "test:security": "npm test"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

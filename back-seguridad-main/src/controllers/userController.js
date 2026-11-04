@@ -2,6 +2,7 @@ import { pool } from '../config/db.js';
 import { mapRolToFrontend } from '../utils/roles.js';
 import { nombreCompleto, manejarErrores } from '../utils/helpers.js';
 import { registrarAcceso } from '../services/logService.js';
+import { verificarCodigo2FA } from '../utils/totp.js';
 
 export const getUsuarios = manejarErrores(
     'Error al obtener usuarios del servidor',
@@ -111,12 +112,11 @@ export const cambiarRol = manejarErrores(
             return res.status(403).json({ error: 'Acceso denegado: No está permitido modificar su propio rol (anti-escalada).' });
         }
 
-        // C-12: Exigir segundo factor de autenticación (2FA) para cambio de privilegios (403 sin 2FA válido)
+        // C-12: Exigir segundo factor de autenticación TOTP (RFC 6238) para cambio de privilegios (403 sin 2FA válido)
         const token2FA = header2fa || codigo2fa;
-        const validTokens = ['2FA-AUTH-OK', '123456', '999888', '2FA-ADMIN-AUTH'];
-        if (!token2FA || !validTokens.includes(token2FA.toString().trim())) {
+        if (!verificarCodigo2FA(token2FA)) {
             return res.status(403).json({ 
-                error: 'Acceso denegado: Se requiere verificación de segundo factor (2FA) válida para cambio de privilegios.' 
+                error: 'Acceso denegado: Se requiere verificación de segundo factor (2FA / TOTP) válida para cambio de privilegios.' 
             });
         }
 

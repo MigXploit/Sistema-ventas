@@ -1,64 +1,97 @@
-import crypto from 'crypto';
-import { JWT_SECRET } from '../config/jwt.js';
-
 /**
- * Criptosistema Simétrico Autenticado AES-256-GCM (NIST SP 800-38D)
- * Diseñado para encriptar y desencriptar activos críticos sensibles de negocio
- * (direcciones de entrega, números telefónicos, referencias de comprobantes).
+ * Módulo de Criptografía Bidireccional: Cifrado de Vigenère sobre Alfabeto ASCII
  * 
- * NOTA DE SEGURIDAD (Política 2 y Política 4):
- * - Las contraseñas de usuario NUNCA utilizan cifrado reversible; usan exclusivamente
- *   derivación de claves unidireccional con sal aleatoria (Bcrypt factor >= 10).
- * - Los demás activos críticos que requieren ser leídos por roles autorizados
- *   (Administrador / Vendedor a cargo) utilizan este criptosistema AES-256-GCM.
+ * Arquitectura Criptográfica en Yasumi Venta:
+ * 1. ALGORITMO UNIDIRECCIONAL (Datos que NO se muestran: contraseñas):
+ *    - Se utiliza exclusivamente la función de hash criptográfico con sal Bcrypt ($2b$10$)
+ *      en authController.js, ya que las contraseñas jamás necesitan desencriptarse.
+ * 
+ * 2. ALGORITMO BIDIRECCIONAL (Datos que SÍ se muestran: títulos, descripciones, datos recuperables):
+ *    - Se utiliza el Cifrado Polialfabético de Vigenère adaptado al alfabeto ASCII imprimible.
+ *    - Fórmula de Cifrado:   nuevo_valor = (valor_texto + valor_clave) mod N
+ *    - Fórmula de Descifrado: nuevo_valor = (valor_texto - valor_clave + N) mod N
  */
 
-const ALGORITMO = 'aes-256-gcm';
+// Alfabeto basado en la tabla ASCII imprimible (caracteres ASCII 32 al 126 + acentos y ñ del español)
+export const ALFABETO_ASCII =
+    ' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~áéíóúÁÉÍÓÚñÑüÜ¿¡';
 
-const obtenerClaveMaestra = () => {
-    const semilla = process.env.DATA_ENCRYPTION_KEY || JWT_SECRET || 'yasumi_default_master_key_2026';
-    return crypto.createHash('sha256').update(String(semilla)).digest(); // 32 bytes (256 bits)
-};
+const CLAVE_POR_DEFECTO = process.env.VIGENERE_ASCII_KEY || 'YASUMI_SEGURIDAD_2026';
+const PREFIJO_VIGENERE = '~VIG~';
 
 /**
- * Encripta un activo crítico en texto plano empleando AES-256-GCM con IV aleatorio de 96 bits.
- * @param {string} textoPlano - Dato sensible a proteger en reposo
- * @returns {string|null} Payload en formato iv_hex:authTag_hex:ciphertext_hex
+ * Cifra un texto usando el algoritmo de Vigenère sobre el alfabeto ASCII.
+ * Estructura homóloga al algoritmo clásico de Vigenère:
+ *   valor_texto = alfabeto.indexOf(letra)
+ *   valor_clave = alfabeto.indexOf(clave[indice_clave % clave.length])
+ *   nuevo_valor = (valor_texto + valor_clave) % N
  */
-export const encriptarActivoCritico = (textoPlano) => {
-    if (textoPlano === null || textoPlano === undefined || textoPlano === '') return null;
-    const iv = crypto.randomBytes(12); // 96 bits recomendado por NIST para GCM
-    const clave = obtenerClaveMaestra();
-    const cipher = crypto.createCipheriv(ALGORITMO, clave, iv);
+export const cifrarVigenereASCII = (texto, clave = CLAVE_POR_DEFECTO) => {
+    if (texto === null || texto === undefined || texto === '') return texto;
+    const str = String(texto);
 
-    let cifrado = cipher.update(String(textoPlano), 'utf8', 'hex');
-    cifrado += cipher.final('hex');
-    const authTag = cipher.getAuthTag().toString('hex'); // Etiqueta de integridad de 128 bits
+    // Evitar doble cifrado si ya tiene el prefijo
+    if (str.startsWith(PREFIJO_VIGENERE)) return str;
 
-    return `${iv.toString('hex')}:${authTag}:${cifrado}`;
-};
+    const claveStr = String(clave || CLAVE_POR_DEFECTO);
+    const N = ALFABETO_ASCII.length;
+    let resultado = '';
+    let indiceClave = 0;
 
-/**
- * Desencripta un activo crítico previamente cifrado con AES-256-GCM y verifica su integridad.
- * @param {string} payloadCifrado - Cadena iv_hex:authTag_hex:ciphertext_hex
- * @returns {string|null} Texto original desencriptado
- */
-export const desencriptarActivoCritico = (payloadCifrado) => {
-    if (!payloadCifrado || typeof payloadCifrado !== 'string' || !payloadCifrado.includes(':')) {
-        return payloadCifrado;
+    for (const letra of str) {
+        const valorTexto = ALFABETO_ASCII.indexOf(letra);
+        if (valorTexto !== -1) {
+            const letraClave = claveStr[indiceClave % claveStr.length];
+            const valorClave = Math.max(0, ALFABETO_ASCII.indexOf(letraClave));
+            const nuevoValor = (valorTexto + valorClave) % N;
+            resultado += ALFABETO_ASCII[nuevoValor];
+            indiceClave += 1;
+        } else {
+            resultado += letra;
+        }
     }
-    const partes = payloadCifrado.split(':');
-    if (partes.length !== 3) return payloadCifrado;
 
-    const [ivHex, authTagHex, cifradoHex] = partes;
-    const iv = Buffer.from(ivHex, 'hex');
-    const authTag = Buffer.from(authTagHex, 'hex');
-    const clave = obtenerClaveMaestra();
-
-    const decipher = crypto.createDecipheriv(ALGORITMO, clave, iv);
-    decipher.setAuthTag(authTag);
-
-    let textoPlano = decipher.update(cifradoHex, 'hex', 'utf8');
-    textoPlano += decipher.final('utf8');
-    return textoPlano;
+    return `${PREFIJO_VIGENERE}${resultado}`;
 };
+
+/**
+ * Descifra un texto en el backend usando el algoritmo inverso de Vigenère sobre el alfabeto ASCII
+ * antes de enviarlo al frontend para su visualización.
+ *   valor_texto = alfabeto.indexOf(letra)
+ *   valor_clave = alfabeto.indexOf(clave[indice_clave % clave.length])
+ *   nuevo_valor = (valor_texto - valor_clave + N) % N
+ */
+export const descifrarVigenereASCII = (textoCifrado, clave = CLAVE_POR_DEFECTO) => {
+    if (textoCifrado === null || textoCifrado === undefined || textoCifrado === '') return textoCifrado;
+    const str = String(textoCifrado);
+
+    // Compatibilidad con registros previos en texto plano
+    if (!str.startsWith(PREFIJO_VIGENERE)) return str;
+
+    const cuerpo = str.slice(PREFIJO_VIGENERE.length);
+    const claveStr = String(clave || CLAVE_POR_DEFECTO);
+    const N = ALFABETO_ASCII.length;
+    let resultado = '';
+    let indiceClave = 0;
+
+    for (const letra of cuerpo) {
+        const valorTexto = ALFABETO_ASCII.indexOf(letra);
+        if (valorTexto !== -1) {
+            const letraClave = claveStr[indiceClave % claveStr.length];
+            const valorClave = Math.max(0, ALFABETO_ASCII.indexOf(letraClave));
+            const nuevoValor = (valorTexto - valorClave + N) % N;
+            resultado += ALFABETO_ASCII[nuevoValor];
+            indiceClave += 1;
+        } else {
+            resultado += letra;
+        }
+    }
+
+    return resultado;
+};
+
+// Alias compatibles con los controladores del backend
+export const cifrarBidireccionalASCII = cifrarVigenereASCII;
+export const descifrarBidireccionalASCII = descifrarVigenereASCII;
+export const encriptarActivoCritico = cifrarVigenereASCII;
+export const desencriptarActivoCritico = descifrarVigenereASCII;
